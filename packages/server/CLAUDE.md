@@ -1,6 +1,6 @@
 # @oggregator/server
 
-Fastify REST + WS aggregation server. Bootstraps venue adapters from `@oggregator/core`.
+Fastify REST API. Bootstraps venue adapters from `@oggregator/core`, serves enriched chain data.
 
 ## Commands
 
@@ -17,25 +17,24 @@ pnpm typecheck      # tsc --noEmit
 src/
   index.ts           Entry point (PORT from env, default 3100)
   app.ts             Fastify factory, plugin registration, adapter bootstrap
-  adapters.ts        Instantiates + registers all venue adapters
+  adapters.ts        Instantiates + registers all 5 venue adapters
   routes/
     health.ts        GET /api/health
     venues.ts        GET /api/venues
     underlyings.ts   GET /api/underlyings
     expiries.ts      GET /api/expiries?underlying=BTC
-    chains.ts        GET /api/chains?underlying=BTC&expiry=2026-03-28
+    chains.ts        GET /api/chains?underlying=BTC&expiry=2026-03-28&venues=deribit,okx
+    surface.ts       GET /api/surface?underlying=BTC
 ```
 
 ## Non-obvious decisions
 
-- **Adapters bootstrap async after server starts** — routes return 503 via `isReady()` check until adapters finish loading. This lets the server accept connections immediately while feeds connect in the background.
+- **Adapters bootstrap async after server starts** — routes return 503 via `isReady()` check until adapters finish loading (~5-15s). Server accepts connections immediately while feeds connect in the background.
 
-- **Server imports only from `@oggregator/core` package root** — never from its internal feeds/core/types paths. If something is needed, it must be exported from core's `index.ts`.
+- **Server imports only from `@oggregator/core` package root** — never from internal feeds/core paths. If something is needed, it must be exported from core's `index.ts`.
 
-- **New venues need zero route changes** — add the adapter to `adapters.ts`, it auto-registers via `registerAdapter()`, and all routes pick it up through `getAllAdapters()`.
+- **New venues need zero route changes** — add the adapter in `adapters.ts`, call `registerAdapter()`, all routes pick it up via `getAllAdapters()`.
 
-## Adding a route
+- **Auto-subscribes on first request** — `chains.ts` calls `ensureSubscribed()` per venue/underlying on first `/api/chains` request, opening WS connections lazily.
 
-1. Create `routes/{name}.ts` with handler function
-2. Register in `routes/index.ts`
-3. Check `isReady()` at the top of the handler
+- **Enrichment happens per request** — each `/api/chains` call rebuilds the enriched response from the current QuoteStore. No caching layer between store and response.

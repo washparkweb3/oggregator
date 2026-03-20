@@ -8,10 +8,11 @@ pnpm typecheck      # tsc --noEmit
 
 ```
 GET /api/health          → service status
-GET /api/venues          → connected venues
-GET /api/underlyings     → base assets per venue
+GET /api/venues          → registered venue IDs
+GET /api/underlyings     → base assets across venues
 GET /api/expiries        → expiry dates (query: underlying)
-GET /api/chains          → cross-venue comparison (query: underlying, expiry)
+GET /api/chains          → enriched cross-venue chain (query: underlying, expiry, venues?)
+GET /api/surface         → IV surface grid (query: underlying)
 ```
 
-Import from `@oggregator/core` only. 503 until adapters ready.
+Imports from `@oggregator/core` only. Returns 503 until adapters ready.
