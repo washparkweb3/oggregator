@@ -1,0 +1,19 @@
+{
+  "name": "oggregator",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Multi-venue crypto options aggregator dashboard",
+  "scripts": {
+    "dev:server": "pnpm --filter @oggregator/server dev",
+    "dev:web": "pnpm --filter @oggregator/web dev",
+    "dev": "pnpm --filter @oggregator/server --filter @oggregator/web --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test:run",
+    "precommit": "pnpm typecheck && pnpm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
