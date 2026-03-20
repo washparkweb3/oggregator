@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   getAllAdapters,
   getAdapter,
+  getRegisteredVenues,
   buildComparisonChain,
   buildEnrichedChain,
   ClientWsMessageSchema,
@@ -108,9 +109,14 @@ export async function wsChainRoute(app: FastifyInstance) {
     async function handleSubscribe(subscriptionId: string, request: WsSubscriptionRequest) {
       if (ctx) disposeContext(ctx);
 
+      // Only subscribe to venues that actually loaded during bootstrap
+      const registered = new Set(getRegisteredVenues());
+      const liveVenues = request.venues.filter((v) => registered.has(v));
+      const resolvedRequest: WsSubscriptionRequest = { ...request, venues: liveVenues };
+
       const newCtx: SubscriptionContext = {
         subscriptionId,
-        request,
+        request: resolvedRequest,
         handlers: {
           onDelta: (_deltas: VenueDelta[]) => { newCtx.dirty = true; },
           onStatus: (status: VenueStatus) => {
@@ -135,7 +141,7 @@ export async function wsChainRoute(app: FastifyInstance) {
       ctx = newCtx;
 
       // Async venue subscriptions — check disposed after each in case a new subscribe arrived
-      for (const venueId of request.venues) {
+      for (const venueId of liveVenues) {
         if (newCtx.disposed) return;
         try {
           const adapter = getAdapter(venueId);
