@@ -2,7 +2,7 @@ import type { EnrichedSide, VenueQuote, VenueId } from "@shared/enriched";
 
 import { VENUES } from "@lib/venue-meta";
 import { IvChip, SpreadPill } from "@components/ui";
-import { fmtUsd, fmtDelta, fmtNum } from "@lib/format";
+import { fmtUsd, fmtDelta, fmtNum, fmtIv } from "@lib/format";
 import styles from "./ExpandedRow.module.css";
 
 interface ExpandedRowProps {
@@ -51,10 +51,16 @@ function VenueRow({ venueId, quote, isBest, myIv, type, strike }: VenueRowProps)
       {/* Mid */}
       <td className={styles.tdNum} data-accent="true">{fmtUsd(quote.mid)}</td>
 
-      {/* IV */}
+      {/* Bid IV */}
+      <td className={styles.tdNum}>{fmtIv(quote.bidIv)}</td>
+
+      {/* Mark IV */}
       <td className={styles.tdChip}>
         <IvChip iv={quote.markIv} size="sm" />
       </td>
+
+      {/* Ask IV */}
+      <td className={styles.tdNum}>{fmtIv(quote.askIv)}</td>
 
       {/* Spread */}
       <td className={styles.tdChip}>
@@ -118,7 +124,9 @@ function SideTable({ side, type, strike, myIv }: SideTableProps) {
           <th className={styles.th}>BID</th>
           <th className={styles.th}>ASK</th>
           <th className={styles.th}>MID</th>
-          <th className={styles.th}>IV</th>
+          <th className={styles.th}>IV BID</th>
+          <th className={styles.th}>IV MARK</th>
+          <th className={styles.th}>IV ASK</th>
           <th className={styles.th}>SPREAD</th>
           <th className={styles.th}>Δ</th>
           <th className={styles.th}>THETA</th>
