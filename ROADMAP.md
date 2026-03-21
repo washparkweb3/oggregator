@@ -44,15 +44,26 @@ Last updated from code: 2026-03-21
 
 ## What's Next
 
-### 3.3 DVOL History Chart
-- Endpoint exists: `GET /api/dvol-history?currency=BTC` returns 366 daily candles
-- TradingView Lightweight Charts cloned in `references/lightweight-charts`
-- Show: DVOL line over time, 52w high/low bands, IVR percentile shading
+### Tier 4 — Historical & Analytics
 
-### 3.4 Option Strategy Builder
-- Execution cost engine exists in `features/builder/` (compute-execution.ts)
-- Supports: per-venue cost breakdown, spread cost, fee estimates, fill warnings
-- Need to build: strategy presets (straddle, strangle, spread), P&L chart, leg builder UI
+| Feature | Data source | Status |
+|---|---|---|
+| Historical volatility (HV) line on DVOL chart | Deribit `public/get_historical_volatility` — 384 hourly HV snapshots, BTC+ETH | Ready to build |
+| Cross-venue 24h volume aggregation | All 5 venues have public 24h volume in their ticker endpoints | Ready to build |
+| Volume by expiry chart | OKX Rubik `open-interest-volume-expiry` — pre-aggregated | Ready to build |
+| Volume by strike chart | OKX Rubik `open-interest-volume-strike` — pre-aggregated | Ready to build |
+| Historical price klines | Deribit `get_tradingview_chart_data`, Binance `/eapi/v1/klines`, Bybit `/v5/market/kline` | Ready to build |
+| Block trade feed | Binance `/eapi/v1/blockTrades`, already in Flow (Bybit BT flag, Derive rfq_id) | Partially done |
+
+### Tier 5 — Strategy Builder
+
+| Feature | Status |
+|---|---|
+| Execution cost engine | ✅ Built (`features/builder/compute-execution.ts`) |
+| Per-venue cost comparison | ✅ Built (`features/builder/OptionBuilder.tsx`) |
+| Strategy presets (straddle, strangle, spread) | Not started |
+| Multi-leg P&L chart | Not started |
+| Custom leg builder UI | Not started |
 
 ## Architecture
 
