@@ -10,10 +10,16 @@ export interface DvolCandle {
   close:     number;
 }
 
+export interface HvPoint {
+  timestamp: number;
+  value:     number;
+}
+
 interface DvolHistoryResponse {
   currency: string;
   count:    number;
   candles:  DvolCandle[];
+  hv:       HvPoint[];
 }
 
 export function useDvolHistory(currency: string) {

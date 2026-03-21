@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { createChart, AreaSeries, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
+import { createChart, AreaSeries, LineSeries, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
 
 import { useAppStore } from "@stores/app-store";
 import { Spinner, EmptyState } from "@components/ui";
@@ -21,7 +21,8 @@ export default function DvolChart() {
 
   const chartRef     = useRef<HTMLDivElement>(null);
   const chartApiRef  = useRef<IChartApi | null>(null);
-  const seriesRef    = useRef<ISeriesApi<"Area"> | null>(null);
+  const ivSeriesRef  = useRef<ISeriesApi<"Area"> | null>(null);
+  const hvSeriesRef  = useRef<ISeriesApi<"Line"> | null>(null);
 
   // Create chart once, update data when it changes
   useEffect(() => {
@@ -57,7 +58,8 @@ export default function DvolChart() {
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
     });
 
-    const series = chart.addSeries(AreaSeries, {
+    // DVOL (implied vol) — teal area
+    const ivSeries = chart.addSeries(AreaSeries, {
       lineColor: "#50D2C1",
       topColor: "rgba(80, 210, 193, 0.28)",
       bottomColor: "rgba(80, 210, 193, 0.02)",
@@ -65,8 +67,18 @@ export default function DvolChart() {
       priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
     });
 
+    // HV (realized vol) — orange dashed line for IV vs HV comparison
+    const hvSeries = chart.addSeries(LineSeries, {
+      color: "#F7A600",
+      lineWidth: 1,
+      lineStyle: 2, // dashed
+      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+      crosshairMarkerVisible: false,
+    });
+
     chartApiRef.current = chart;
-    seriesRef.current = series;
+    ivSeriesRef.current = ivSeries;
+    hvSeriesRef.current = hvSeries;
 
     const resizeObserver = new ResizeObserver(() => {
       if (container) {
@@ -82,20 +94,32 @@ export default function DvolChart() {
       resizeObserver.disconnect();
       chart.remove();
       chartApiRef.current = null;
-      seriesRef.current = null;
+      ivSeriesRef.current = null;
+      hvSeriesRef.current = null;
     };
   }, []);
 
   // Update data when candles arrive or currency changes
   useEffect(() => {
-    if (!seriesRef.current || !data?.candles.length) return;
+    if (!ivSeriesRef.current || !data?.candles.length) return;
 
-    const lineData = data.candles.map((c) => ({
-      time: (c.timestamp / 1000) as number,
-      value: c.close,
-    }));
+    const seenIv = new Set<number>();
+    const ivData = data.candles
+      .map((c) => ({ time: Math.floor(c.timestamp / 1000) as number, value: c.close }))
+      .filter((p) => { if (seenIv.has(p.time)) return false; seenIv.add(p.time); return true; })
+      .sort((a, b) => a.time - b.time);
+    ivSeriesRef.current.setData(ivData as never);
 
-    seriesRef.current.setData(lineData as never);
+    // Overlay HV — Deribit sends duplicate timestamps, deduplicate and sort
+    if (hvSeriesRef.current && data.hv?.length > 0) {
+      const seen = new Set<number>();
+      const hvData = data.hv
+        .map((p) => ({ time: Math.floor(p.timestamp / 1000) as number, value: p.value }))
+        .filter((p) => { if (seen.has(p.time)) return false; seen.add(p.time); return true; })
+        .sort((a, b) => a.time - b.time);
+      hvSeriesRef.current.setData(hvData as never);
+    }
+
     chartApiRef.current?.timeScale().fitContent();
   }, [data]);
 
@@ -135,6 +159,12 @@ export default function DvolChart() {
           <span className={styles.subtitle}>
             30-day ATM implied volatility{data ? ` · ${data.count} daily candles` : ""}
           </span>
+          <div className={styles.chartLegend}>
+            <span className={styles.legendLine} data-type="iv" />
+            <span className={styles.legendText}>IV (DVOL)</span>
+            <span className={styles.legendLine} data-type="hv" />
+            <span className={styles.legendText}>HV (Realized)</span>
+          </div>
         </div>
 
         {dvol && (

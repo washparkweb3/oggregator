@@ -70,6 +70,31 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Chart legend ────────────────────────────────── */
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.legendLine {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.legendLine[data-type="iv"] { background: var(--accent-primary); }
+.legendLine[data-type="hv"] { background: #F7A600; border-style: dashed; }
+
+.legendText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: var(--space-3);
+}
+
 /* ── Stats badges ────────────────────────────────── */
 
 .stats {

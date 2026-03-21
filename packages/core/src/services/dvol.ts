@@ -49,9 +49,15 @@ export interface DvolCandle {
   close: number;
 }
 
+export interface HvPoint {
+  timestamp: number;
+  value:     number;
+}
+
 export class DvolService {
   private snapshots = new Map<string, DvolSnapshot>();
   private candleHistory = new Map<string, DvolCandle[]>();
+  private hvHistory = new Map<string, HvPoint[]>();
   private rpc: JsonRpcWsClient | null = null;
   private currencies: string[] = [];
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,7 +75,10 @@ export class DvolService {
 
     await this.rpc.connect();
 
-    await Promise.all(currencies.map(c => this.fetchHistory(c)));
+    await Promise.all(currencies.map(c => Promise.all([
+      this.fetchHistory(c),
+      this.fetchHv(c),
+    ])));
 
     const channels = currencies.map(c => `deribit_volatility_index.${c.toLowerCase()}_usd`);
     await this.rpc.subscribe(channels);
@@ -89,6 +98,11 @@ export class DvolService {
   /** Daily DVOL candles (percentage values, e.g. 52.1 = 52.1% IV). */
   getHistory(currency: string): DvolCandle[] {
     return this.candleHistory.get(currency) ?? [];
+  }
+
+  /** Hourly realized volatility snapshots (percentage values). */
+  getHv(currency: string): HvPoint[] {
+    return this.hvHistory.get(currency) ?? [];
   }
 
   // ── History fetch ─────────────────────────────────────────────
@@ -135,6 +149,33 @@ export class DvolService {
       ivr: this.snapshots.get(currency)!.ivr.toFixed(1),
       candles: candles.length,
     }, 'DVOL history loaded');
+  }
+
+  /** Deribit's get_historical_volatility returns hourly realized vol snapshots. */
+  private async fetchHv(currency: string): Promise<void> {
+    try {
+      const raw = await this.rpc!.call('public/get_historical_volatility', { currency });
+
+      if (!Array.isArray(raw)) {
+        log.warn({ currency }, 'unexpected HV response shape');
+        return;
+      }
+
+      const points: HvPoint[] = [];
+      for (const item of raw) {
+        if (!Array.isArray(item) || item.length < 2) continue;
+        const ts  = Number(item[0]);
+        const val = Number(item[1]);
+        if (Number.isFinite(ts) && Number.isFinite(val)) {
+          points.push({ timestamp: ts, value: val });
+        }
+      }
+
+      this.hvHistory.set(currency, points);
+      log.info({ currency, count: points.length }, 'HV history loaded');
+    } catch (err: unknown) {
+      log.warn({ currency, err: String(err) }, 'HV fetch failed');
+    }
   }
 
   // ── Live updates ──────────────────────────────────────────────
