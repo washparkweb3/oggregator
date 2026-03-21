@@ -1,7 +1,10 @@
 // ── Number formatters ─────────────────────────────────────────────────────
+// Convention: null or zero prices render as "–" (industry standard — IB, TradingView).
+// A zero bid/ask means "no market", not "free". Greeks CAN be legitimately zero
+// (delta=0 for deep OTM) so they use separate formatters that preserve zero.
 
 export function fmtUsd(v: number | null | undefined): string {
-  if (v == null) return "–";
+  if (v == null || v === 0) return "–";
   if (Math.abs(v) >= 1_000_000_000)
     return `$${(v / 1_000_000_000).toFixed(2)}B`;
   if (Math.abs(v) >= 1_000_000)
@@ -24,7 +27,7 @@ export function fmtUsdCompact(v: number | null | undefined): string {
 }
 
 export function fmtIv(v: number | null | undefined): string {
-  if (v == null) return "–";
+  if (v == null || v === 0) return "–";
   return `${(v * 100).toFixed(1)}%`;
 }
 
