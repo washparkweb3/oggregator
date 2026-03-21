@@ -109,7 +109,6 @@ export async function wsChainRoute(app: FastifyInstance) {
     async function handleSubscribe(subscriptionId: string, request: WsSubscriptionRequest) {
       if (ctx) disposeContext(ctx);
 
-      // Only subscribe to venues that actually loaded during bootstrap
       const registered = new Set(getRegisteredVenues());
       const liveVenues = request.venues.filter((v) => registered.has(v));
       const resolvedRequest: WsSubscriptionRequest = { ...request, venues: liveVenues };
