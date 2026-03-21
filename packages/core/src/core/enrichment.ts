@@ -127,10 +127,9 @@ function contractToVenueQuote(contract: NormalizedOptionContract): VenueQuote {
 /**
  * Builds an EnrichedSide from the per-venue contracts at one strike/right.
  * bestIv is the lowest non-null markIv across venues with an active market —
- * lower IV = cheaper premium, so it identifies the best entry price for a buyer.
- * Venues with zero bid and ask are excluded: they list instruments but have no
- * real quotes (e.g. Derive SOL), and letting them win bestVenue would propagate
- * their placeholder prices as the authoritative mid.
+ * lower IV = cheaper premium, so it identifies the best entry for a buyer.
+ * Venues without real liquidity (zero quotes or placeholder prices with no OI)
+ * are excluded from bestVenue selection to prevent phantom data from propagating.
  */
 function buildEnrichedSide(
   contracts: Partial<Record<VenueId, NormalizedOptionContract>>,
@@ -146,9 +145,8 @@ function buildEnrichedSide(
     const quote = contractToVenueQuote(contract);
     venues[venueKey] = quote;
 
-    // Require a real market: non-zero quotes AND either open interest or a genuine
-    // spread (bid ≠ ask). Derive SOL lists instruments with bid=ask=250 and OI=0 —
-    // phantom placeholder quotes that must not win bestVenue.
+    // Exclude phantom quotes: some venues list instruments with identical bid/ask
+    // and zero OI — no real market exists. Require OI > 0 or a genuine spread.
     const hasQuotes = (quote.bid !== null && quote.bid > 0) || (quote.ask !== null && quote.ask > 0);
     const hasLiquidity = (quote.openInterest ?? 0) > 0
       || (quote.bid !== null && quote.ask !== null && quote.bid !== quote.ask);

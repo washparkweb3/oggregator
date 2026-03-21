@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 
 import type { EnrichedStrike, EnrichedSide } from "@shared/enriched";
 
-import { IvChip, SpreadPill, VenueDot } from "@components/ui";
+import { IvChip, SpreadPill, VenueDot, EmptyState } from "@components/ui";
 import { fmtUsd, fmtDelta } from "@lib/format";
 import ExpandedRow from "./ExpandedRow";
 import styles from "./NewChainTable.module.css";
@@ -178,7 +178,12 @@ export default function NewChainTable({
   }, [atmStrike]);
 
   if (strikes.length === 0) {
-    return <div className={styles.empty}>No options data for this expiry.</div>;
+    return (
+      <EmptyState
+        icon="∅"
+        title="No options data for this expiry"
+      />
+    );
   }
 
   function toggleRow(s: number) {

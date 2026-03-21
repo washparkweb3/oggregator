@@ -69,10 +69,10 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   // instrument loading so price_index updates can fan out efficiently.
   private indexToInstruments = new Map<string, Set<string>>();
 
-  // Subscribe to ALL expiries so bid/ask and greeks are live from boot.
-  // agg2 (2s) keeps per-instrument bandwidth low. Deribit rate limits are
-  // comfortable: ~4300 instruments / 500 per batch = 9 subscribe calls,
-  // each costing 3000 credits from a 30k pool that refills at 10k/sec.
+  // All expiries get ticker subscriptions at boot so bid/ask and greeks are
+  // live from second one. agg2 (2s aggregation) keeps traffic manageable.
+  // Rate budget: ~4300 instruments ÷ 500/batch = 9 calls × 3000 credits = 27k
+  // out of 30k pool (refills at 10k/sec).
   protected override async eagerSubscribe(): Promise<void> {
     const underlyings = await this.listUnderlyings();
 
@@ -372,15 +372,12 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       const prev = this.quoteStore.get(mp.instrument_name);
       const hasTicker = this.subscribedTickers.has(mp.instrument_name);
 
-      // Use live index price for underlyingPrice when available, falling back
-      // to whatever was stored previously (book summary value at boot).
       const indexName = this.indexNameFor(inst.base);
       const liveUnderlying = this.liveIndexPrices.get(indexName);
 
-      // For instruments without a live ticker subscription, bid/ask are stale
-      // from the boot-time book summary. Null them so the enrichment layer
-      // falls back to markMid (markPrice × live underlyingPrice) which is 100%
-      // correct. Instruments WITH a ticker have live bid/ask — keep them.
+      // Safety net: if a ticker subscription is missing (shouldn't happen since
+      // eagerSubscribe covers all expiries), null stale bid/ask so enrichment
+      // falls back to markMid rather than showing boot-time prices.
       const bidPrice = hasTicker ? (prev?.bidPrice ?? null) : null;
       const askPrice = hasTicker ? (prev?.askPrice ?? null) : null;
 
@@ -407,22 +404,16 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     }
   }
 
-  /**
-   * `deribit_price_index.{index_name}` — live underlying/index price.
-   *
-   * Updates ~1s. Stores the latest price so handleMarkPriceOptions can use it
-   * for underlyingPrice on the next tick, keeping USD conversions fresh for
-   * all instruments without individual ticker subscriptions.
-   */
+  // deribit_price_index pushes the live spot price (~1s). Stored so
+  // handleMarkPriceOptions uses it for underlyingPrice on the next tick.
   private handlePriceIndex(data: unknown): void {
     const parsed = DeribitPriceIndexSchema.safeParse(data);
     if (!parsed.success) return;
 
     this.liveIndexPrices.set(parsed.data.index_name, parsed.data.price);
 
-    // Fan out: update underlyingPrice on all instruments under this index
-    // so that normPrice uses the live spot rate immediately, even before
-    // the next markprice.options tick arrives.
+    // Fan out to all instruments so normPrice uses the live spot rate
+    // immediately, without waiting for the next markprice.options tick.
     const instruments = this.indexToInstruments.get(parsed.data.index_name);
     if (!instruments) return;
 

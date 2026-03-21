@@ -1,6 +1,7 @@
 import type { IvSurfaceRow, TermStructure } from "@shared/enriched";
 
 import { useAppStore } from "@stores/app-store";
+import { Spinner, EmptyState } from "@components/ui";
 import { fmtIv, formatExpiry, dteDays } from "@lib/format";
 import { heatmapColor } from "@lib/colors";
 import { useSurface } from "./queries";
@@ -73,7 +74,7 @@ export default function SurfaceView() {
   if (isLoading) {
     return (
       <div className={styles.view}>
-        <div className={styles.loading}>Loading IV surface (may take 2-3s)…</div>
+        <Spinner size="lg" label="Loading IV surface…" />
       </div>
     );
   }
@@ -81,9 +82,11 @@ export default function SurfaceView() {
   if (error) {
     return (
       <div className={styles.view}>
-        <div className={styles.error}>
-          {error instanceof Error ? error.message : "Failed to load surface"}
-        </div>
+        <EmptyState
+          icon="⚠"
+          title="Failed to load surface"
+          detail={error instanceof Error ? error.message : "Check your connection and try again."}
+        />
       </div>
     );
   }
@@ -91,7 +94,7 @@ export default function SurfaceView() {
   if (!data || data.surface.length === 0) {
     return (
       <div className={styles.view}>
-        <div className={styles.empty}>No surface data available.</div>
+        <EmptyState icon="∅" title="No surface data available" />
       </div>
     );
   }

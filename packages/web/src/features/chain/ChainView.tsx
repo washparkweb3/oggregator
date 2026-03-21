@@ -4,6 +4,7 @@ import { useAppStore } from "@stores/app-store";
 import { useChainQuery, useExpiries } from "./queries";
 import { useChainWs } from "@hooks/useChainWs";
 import { useOpenPalette } from "@components/layout";
+import { Spinner, EmptyState } from "@components/ui";
 
 import ExpiryBar    from "./ExpiryBar";
 import StatStrip    from "./StatStrip";
@@ -89,14 +90,23 @@ export default function ChainView() {
 
         <div className={styles.tableArea}>
           {isLoading && !chain && (
-            <div className={styles.status}>Loading chain data…</div>
+            <Spinner size="lg" label="Loading chain data…" />
           )}
-          {error && (
-            <div className={styles.error}>
-              {error instanceof Error ? error.message : "Failed to load chain"}
-            </div>
+          {error && !chain && (
+            <EmptyState
+              icon="⚠"
+              title="Failed to load chain"
+              detail={error instanceof Error ? error.message : "Check your connection and try again."}
+            />
           )}
-          {chain && (
+          {chain && chain.strikes.length === 0 && (
+            <EmptyState
+              icon="∅"
+              title="No options data"
+              detail={`No venues returned data for ${underlying} ${expiry}. The expiry may only be listed on venues that are currently unavailable.`}
+            />
+          )}
+          {chain && chain.strikes.length > 0 && (
             <NewChainTable
               strikes={chain.strikes}
               atmStrike={chain.stats.atmStrike}
