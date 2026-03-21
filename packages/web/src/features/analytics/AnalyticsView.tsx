@@ -30,16 +30,20 @@ interface ExpiryPcr {
   ratio:   number;
 }
 
-function aggregateVenueVolume(chains: EnrichedChainResponse[]): VenueVolume[] {
+function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number): VenueVolume[] {
   const map = new Map<string, { volume: number; oi: number }>();
+
+  // Inverse venues (Deribit, OKX) report volume/OI in BTC — multiply by spot for USD
+  const INVERSE_VENUES = new Set(["deribit", "okx"]);
 
   for (const chain of chains) {
     for (const strike of chain.strikes) {
       for (const side of [strike.call, strike.put]) {
         for (const [venue, q] of Object.entries(side.venues)) {
           const prev = map.get(venue) ?? { volume: 0, oi: 0 };
-          prev.volume += q?.volume24h ?? 0;
-          prev.oi     += q?.openInterest ?? 0;
+          const multiplier = INVERSE_VENUES.has(venue) ? spotPrice : 1;
+          prev.volume += (q?.volume24h ?? 0) * multiplier;
+          prev.oi     += (q?.openInterest ?? 0) * multiplier;
           map.set(venue, prev);
         }
       }
@@ -54,15 +58,19 @@ function aggregateVenueVolume(chains: EnrichedChainResponse[]): VenueVolume[] {
 
 function aggregateStrikeOi(chains: EnrichedChainResponse[], spotPrice: number | null): StrikeOi[] {
   const map = new Map<number, { callOi: number; putOi: number }>();
+  const INVERSE_VENUES = new Set(["deribit", "okx"]);
+  const spot = spotPrice ?? 1;
 
   for (const chain of chains) {
     for (const strike of chain.strikes) {
       const prev = map.get(strike.strike) ?? { callOi: 0, putOi: 0 };
-      for (const q of Object.values(strike.call.venues)) {
-        prev.callOi += q?.openInterest ?? 0;
+      for (const [venue, q] of Object.entries(strike.call.venues)) {
+        const mul = INVERSE_VENUES.has(venue) ? spot : 1;
+        prev.callOi += (q?.openInterest ?? 0) * mul;
       }
-      for (const q of Object.values(strike.put.venues)) {
-        prev.putOi += q?.openInterest ?? 0;
+      for (const [venue, q] of Object.entries(strike.put.venues)) {
+        const mul = INVERSE_VENUES.has(venue) ? spot : 1;
+        prev.putOi += (q?.openInterest ?? 0) * mul;
       }
       map.set(strike.strike, prev);
     }
@@ -97,13 +105,6 @@ function aggregateExpiryPcr(chains: EnrichedChainResponse[]): ExpiryPcr[] {
 
 // ── Sub-components ──────────────────────────────────────────────
 
-function fmtContracts(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
-  if (v === 0)        return "–";
-  return v.toFixed(0);
-}
-
 function VenueVolumeChart({ data }: { data: VenueVolume[] }) {
   const maxOi = Math.max(...data.map((d) => d.oi), 1);
 
@@ -112,7 +113,7 @@ function VenueVolumeChart({ data }: { data: VenueVolume[] }) {
   return (
     <div className={styles.card}>
       <div className={styles.cardTitle}>Open Interest & Volume by Venue</div>
-      <div className={styles.cardSubtitle}>Contracts · aggregated across all expiries</div>
+      <div className={styles.cardSubtitle}>USD notional · aggregated across all expiries</div>
       <div className={styles.venueHeader}>
         <span />
         <span />
@@ -132,8 +133,8 @@ function VenueVolumeChart({ data }: { data: VenueVolume[] }) {
               <div className={styles.barTrack}>
                 <div className={styles.bar} style={{ width: `${pct}%` }} />
               </div>
-              <span className={styles.statPrimary}>{fmtContracts(d.oi)}</span>
-              <span className={styles.statDim}>{fmtContracts(d.volume)}</span>
+              <span className={styles.statPrimary}>{fmtUsdCompact(d.oi)}</span>
+              <span className={styles.statDim}>{fmtUsdCompact(d.volume)}</span>
             </div>
           );
         })}
@@ -233,7 +234,7 @@ export default function AnalyticsView() {
   }
 
   const spotPrice    = chains[0]?.stats.spotIndexUsd ?? null;
-  const venueVolume  = aggregateVenueVolume(chains);
+  const venueVolume  = aggregateVenueVolume(chains, spotPrice ?? 1);
   const strikeOi     = aggregateStrikeOi(chains, spotPrice);
   const expiryPcr    = aggregateExpiryPcr(chains);
 
