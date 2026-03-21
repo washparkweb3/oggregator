@@ -116,7 +116,6 @@ export default function FlowView() {
   const { data, isLoading, error } = useFlow(asset);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
-  const listRef = useRef<HTMLDivElement>(null);
 
   // Track which trades are "new" since last poll for flash animation
   useEffect(() => {
@@ -199,7 +198,7 @@ export default function FlowView() {
         <span>IV</span>
       </div>
 
-      <div className={styles.list} ref={listRef}>
+      <div className={styles.list}>
         {trades.length === 0 ? (
           <EmptyState icon="◈" title="No trades yet" detail="Waiting for options trades to flow in…" />
         ) : (
