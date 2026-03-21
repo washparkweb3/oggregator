@@ -84,7 +84,17 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
 
     await this.fetchBulkTickers();
 
-    return instruments;
+    // Prune instruments for expiries where Derive returned zero tickers.
+    // Derive's get_instruments lists expiries that have no actual market data,
+    // which causes ghost expiry tabs in the UI.
+    const before = instruments.length;
+    const live = instruments.filter((inst) => this.quoteStore.has(inst.exchangeSymbol));
+
+    if (live.length < before) {
+      log.info({ before, after: live.length, pruned: before - live.length }, 'pruned instruments with no quote data');
+    }
+
+    return live;
   }
 
   private parseInstrument(item: unknown): CachedInstrument | null {
