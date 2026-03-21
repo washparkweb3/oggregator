@@ -75,8 +75,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     await this.connectAndSubscribe(instruments);
     await this.waitForFirstData();
 
-    // WS optionMarkPrice has no volume or OI — supplement from REST ticker
-    await this.fetchTickerSnapshot();
+    // WS optionMarkPrice has no volume or OI — supplement from REST
+    await this.fetchTickerSnapshot(instruments);
 
     return instruments;
   }
@@ -306,7 +306,7 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
   // ── REST supplement — WS optionMarkPrice has no volume or OI ──
 
-  private async fetchTickerSnapshot(): Promise<void> {
+  private async fetchTickerSnapshot(instruments: CachedInstrument[]): Promise<void> {
     try {
       const raw = await this.fetchEapi('/eapi/v1/ticker');
       if (!Array.isArray(raw)) return;
@@ -328,13 +328,12 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
 
     // OI endpoint: /eapi/v1/openInterest?underlyingAsset=BTC&expiration=YYMMDD
     const expiries = new Set<string>();
-    for (const inst of this.instruments) {
-      // Extract YYMMDD from symbol like "BTC-260327-70000-C"
+    for (const inst of instruments) {
       const m = inst.exchangeSymbol.match(/-(\d{6})-/);
       if (m) expiries.add(m[1]!);
     }
 
-    const baseAssets = new Set(this.instruments.map((i) => i.base));
+    const baseAssets = new Set(instruments.map((i) => i.base));
 
     for (const base of baseAssets) {
       for (const expiry of expiries) {
