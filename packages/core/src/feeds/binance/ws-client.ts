@@ -325,6 +325,38 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     } catch (err: unknown) {
       log.warn({ err: String(err) }, 'ticker snapshot failed');
     }
+
+    // OI endpoint: /eapi/v1/openInterest?underlyingAsset=BTC&expiration=YYMMDD
+    const expiries = new Set<string>();
+    for (const inst of this.instruments) {
+      // Extract YYMMDD from symbol like "BTC-260327-70000-C"
+      const m = inst.exchangeSymbol.match(/-(\d{6})-/);
+      if (m) expiries.add(m[1]!);
+    }
+
+    const baseAssets = new Set(this.instruments.map((i) => i.base));
+
+    for (const base of baseAssets) {
+      for (const expiry of expiries) {
+        try {
+          const raw = await this.fetchEapi(`/eapi/v1/openInterest?underlyingAsset=${base}&expiration=${expiry}`);
+          if (!Array.isArray(raw)) continue;
+
+          let merged = 0;
+          for (const item of raw) {
+            const t = item as { symbol?: string; sumOpenInterest?: string; sumOpenInterestUsd?: string };
+            if (typeof t.symbol !== 'string') continue;
+            const prev = this.quoteStore.get(t.symbol);
+            if (prev) {
+              // Store raw contract count — analytics layer handles USD conversion
+              prev.openInterest = this.safeNum(t.sumOpenInterest);
+              merged++;
+            }
+          }
+          if (merged > 0) log.info({ base, expiry, count: merged }, 'merged OI from REST');
+        } catch { /* skip failed expiries */ }
+      }
+    }
   }
 
   // ── helpers ───────────────────────────────────────────────────

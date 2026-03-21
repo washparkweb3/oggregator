@@ -39,9 +39,9 @@ interface ExpiryPcr {
 const VENUE_VOL_MULTIPLIER: Record<string, (spot: number) => { vol: number; oi: number }> = {
   deribit: (spot) => ({ vol: spot, oi: spot }),             // BTC → USD
   okx:     (spot) => ({ vol: 0.01 * spot, oi: spot }),      // contracts × 0.01 BTC → USD; oiCcy already BTC
-  bybit:   (_)    => ({ vol: 1, oi: 1 }),                   // already USDT-denominated
-  binance: (_)    => ({ vol: 1, oi: 1 }),                   // already USDT-denominated
-  derive:  (_)    => ({ vol: 1, oi: 1 }),                   // already USDC-denominated
+  bybit:   (spot) => ({ vol: spot, oi: spot }),               // contracts × 1 unit each → × spot for USD
+  binance: (spot) => ({ vol: spot, oi: spot }),               // contracts × 1 unit each → × spot for USD
+  derive:  (spot) => ({ vol: 1, oi: spot }),                  // vol in USDC (already USD), OI in contracts → × spot
 };
 
 function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number): VenueVolume[] {
