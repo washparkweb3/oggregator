@@ -55,6 +55,14 @@ export const DeribitBookSummarySchema = z.object({
 });
 export type DeribitBookSummary = z.infer<typeof DeribitBookSummarySchema>;
 
+// deribit_price_index.{index_name} — live underlying/index price (~1s updates)
+export const DeribitPriceIndexSchema = z.object({
+  index_name: z.string(),
+  price: z.number(),
+  timestamp: z.number(),
+});
+export type DeribitPriceIndex = z.infer<typeof DeribitPriceIndexSchema>;
+
 // get_instruments response item
 export const DeribitInstrumentSchema = z.object({
   instrument_name: z.string(),

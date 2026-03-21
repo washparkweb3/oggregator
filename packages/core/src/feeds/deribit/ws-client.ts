@@ -8,6 +8,7 @@ import {
   DeribitTickerSchema,
   DeribitBookSummarySchema,
   DeribitInstrumentSchema,
+  DeribitPriceIndexSchema,
   type DeribitMarkPriceItem,
   type DeribitTicker,
   type DeribitBookSummary,
@@ -43,18 +44,30 @@ const INSTRUMENT_RE = /^(\w+)-(\w+)-(\d+(?:d\d+)?)-([CP])$/;
  * Initial snapshot: `public/get_book_summary_by_currency` per currency family.
  *
  * Live data:
- *   - `markprice.options.{index_name}` — bulk mark price + IV for all options.
- *   - `ticker.{instrument}.100ms` — full greeks for the subscribed chain.
+ *   - `deribit_price_index.{index_name}` — live spot price (~1s), keeps
+ *     underlyingPrice fresh for USD conversion across ALL instruments.
+ *   - `markprice.options.{index_name}` — bulk mark price + IV (2s) for all options.
+ *   - `ticker.{instrument}.{interval}` — full bid/ask + greeks for subscribed chains.
  *
  * Deribit is inverse for BTC/ETH: premiums quoted in the base asset.
- * We normalize to USD using underlyingPrice at emission time.
+ * We normalize to USD using underlyingPrice from the live price index.
  */
 export class DeribitWsAdapter extends SdkBaseAdapter {
   readonly venue: VenueId = 'deribit';
 
   private rpc!: JsonRpcWsClient;
   private subscribedIndexes = new Set<string>();
+  private subscribedPriceIndexes = new Set<string>();
   private subscribedTickers = new Set<string>();
+
+  // Live index prices from deribit_price_index channels (~1s updates).
+  // Used to keep underlyingPrice fresh for ALL instruments, even those
+  // without individual ticker subscriptions.
+  private liveIndexPrices = new Map<string, number>();
+
+  // Maps index_name → set of exchangeSymbols under that index, built during
+  // instrument loading so price_index updates can fan out efficiently.
+  private indexToInstruments = new Map<string, Set<string>>();
 
   protected override async eagerSubscribe(): Promise<void> {
     const underlyings = await this.listUnderlyings();
@@ -85,6 +98,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     this.rpc.onSubscription((channel: string, data: unknown) => {
       if (channel.startsWith('markprice.options.')) {
         this.handleMarkPriceOptions(data);
+      } else if (channel.startsWith('deribit_price_index.')) {
+        this.handlePriceIndex(data);
       } else if (channel.startsWith('ticker.')) {
         this.handleTicker(channel, data);
       }
@@ -243,18 +258,47 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
     await this.subscribeWithInterval(underlying, instruments, ACTIVE_TICKER_INTERVAL);
   }
 
+  /**
+   * Derive the Deribit index_name from our underlying identifier.
+   * "BTC" → "btc_usd"; "BTC_USDC" → "btc_usdc" (already contains the pair).
+   */
+  private indexNameFor(underlying: string): string {
+    return underlying.includes('_')
+      ? underlying.toLowerCase()
+      : `${underlying.toLowerCase()}_usd`;
+  }
+
   private async subscribeWithInterval(
     underlying: string,
     instruments: CachedInstrument[],
     interval: string,
   ): Promise<void> {
-    const indexChannels: string[] = [];
+    const bulkChannels: string[] = [];
     const tickerChannels: string[] = [];
 
-    const indexName = `${underlying.toLowerCase()}_usd`;
+    const indexName = this.indexNameFor(underlying);
+
     if (!this.subscribedIndexes.has(indexName)) {
-      indexChannels.push(`markprice.options.${indexName}`);
+      bulkChannels.push(`markprice.options.${indexName}`);
       this.subscribedIndexes.add(indexName);
+    }
+
+    // deribit_price_index delivers the live spot price for USD conversion.
+    // One subscription per index covers all instruments under that underlying.
+    if (!this.subscribedPriceIndexes.has(indexName)) {
+      bulkChannels.push(`deribit_price_index.${indexName}`);
+      this.subscribedPriceIndexes.add(indexName);
+
+      // Build the reverse lookup: index → instruments, for fan-out in handlePriceIndex
+      if (!this.indexToInstruments.has(indexName)) {
+        const syms = new Set<string>();
+        for (const inst of this.instruments) {
+          if (this.indexNameFor(inst.base) === indexName) {
+            syms.add(inst.exchangeSymbol);
+          }
+        }
+        this.indexToInstruments.set(indexName, syms);
+      }
     }
 
     for (const inst of instruments) {
@@ -266,9 +310,9 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       }
     }
 
-    if (indexChannels.length > 0) {
-      await this.rpc.subscribe(indexChannels);
-      log.info({ count: indexChannels.length, underlying }, 'subscribed to mark-price index channels');
+    if (bulkChannels.length > 0) {
+      await this.rpc.subscribe(bulkChannels);
+      log.info({ count: bulkChannels.length, underlying }, 'subscribed to bulk index channels');
     }
 
     // Batched to respect Deribit's rate limit (~3.3 subscribe calls/sec).
@@ -296,6 +340,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
   protected async unsubscribeAll(): Promise<void> {
     await this.rpc.unsubscribeAll();
     this.subscribedIndexes.clear();
+    this.subscribedPriceIndexes.clear();
     this.subscribedTickers.clear();
     this.tickerIntervals.clear();
   }
@@ -318,19 +363,33 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
 
     for (const item of parsed.data) {
       const mp: DeribitMarkPriceItem = item;
-      if (!this.instrumentMap.has(mp.instrument_name)) continue;
+      const inst = this.instrumentMap.get(mp.instrument_name);
+      if (!inst) continue;
 
       const prev = this.quoteStore.get(mp.instrument_name);
+      const hasTicker = this.subscribedTickers.has(mp.instrument_name);
+
+      // Use live index price for underlyingPrice when available, falling back
+      // to whatever was stored previously (book summary value at boot).
+      const indexName = this.indexNameFor(inst.base);
+      const liveUnderlying = this.liveIndexPrices.get(indexName);
+
+      // For instruments without a live ticker subscription, bid/ask are stale
+      // from the boot-time book summary. Null them so the enrichment layer
+      // falls back to markMid (markPrice × live underlyingPrice) which is 100%
+      // correct. Instruments WITH a ticker have live bid/ask — keep them.
+      const bidPrice = hasTicker ? (prev?.bidPrice ?? null) : null;
+      const askPrice = hasTicker ? (prev?.askPrice ?? null) : null;
 
       const quote: LiveQuote = {
-        bidPrice: prev?.bidPrice ?? null,
-        askPrice: prev?.askPrice ?? null,
-        bidSize: prev?.bidSize ?? null,
-        askSize: prev?.askSize ?? null,
+        bidPrice,
+        askPrice,
+        bidSize: hasTicker ? (prev?.bidSize ?? null) : null,
+        askSize: hasTicker ? (prev?.askSize ?? null) : null,
         markPrice: mp.mark_price,
         lastPrice: prev?.lastPrice ?? null,
-        underlyingPrice: prev?.underlyingPrice ?? null,
-        indexPrice: prev?.indexPrice ?? null,
+        underlyingPrice: liveUnderlying ?? prev?.underlyingPrice ?? null,
+        indexPrice: liveUnderlying ?? prev?.indexPrice ?? null,
         volume24h: prev?.volume24h ?? null,
         openInterest: prev?.openInterest ?? null,
         greeks: {
@@ -342,6 +401,34 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       };
 
       this.emitQuoteUpdate(mp.instrument_name, quote);
+    }
+  }
+
+  /**
+   * `deribit_price_index.{index_name}` — live underlying/index price.
+   *
+   * Updates ~1s. Stores the latest price so handleMarkPriceOptions can use it
+   * for underlyingPrice on the next tick, keeping USD conversions fresh for
+   * all instruments without individual ticker subscriptions.
+   */
+  private handlePriceIndex(data: unknown): void {
+    const parsed = DeribitPriceIndexSchema.safeParse(data);
+    if (!parsed.success) return;
+
+    this.liveIndexPrices.set(parsed.data.index_name, parsed.data.price);
+
+    // Fan out: update underlyingPrice on all instruments under this index
+    // so that normPrice uses the live spot rate immediately, even before
+    // the next markprice.options tick arrives.
+    const instruments = this.indexToInstruments.get(parsed.data.index_name);
+    if (!instruments) return;
+
+    for (const exchangeSymbol of instruments) {
+      const prev = this.quoteStore.get(exchangeSymbol);
+      if (!prev) continue;
+
+      prev.underlyingPrice = parsed.data.price;
+      prev.indexPrice = parsed.data.price;
     }
   }
 
