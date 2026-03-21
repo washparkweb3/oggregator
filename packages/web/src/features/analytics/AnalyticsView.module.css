@@ -1,0 +1,299 @@
+.view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--space-6);
+  gap: var(--space-4);
+}
+
+.header { flex-shrink: 0; }
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Grid ──────────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.grid > :last-child {
+  grid-column: 1 / -1;
+}
+
+/* ── Card ──────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cardTitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+/* ── Venue Volume ──────────────────────────────────── */
+
+.venueList { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.venueRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 140px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.venueLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.venueLogo { width: 16px; height: 16px; object-fit: contain; }
+
+.barTrack {
+  height: 16px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+.venueStats {
+  display: flex;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.statPrimary { color: var(--text-secondary); font-weight: 600; }
+.statDim     { color: var(--text-dim); }
+
+/* ── Put/Call Ratio ────────────────────────────────── */
+
+.pcrList { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.pcrRow {
+  display: grid;
+  grid-template-columns: 90px 1fr 50px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pcrLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dteBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+}
+
+.dteBadge[data-urgent="true"] {
+  background: color-mix(in srgb, var(--color-loss) 18%, transparent);
+  color: var(--color-loss);
+}
+
+.pcrBar {
+  display: flex;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pcrCall {
+  background: var(--color-profit);
+  opacity: 0.7;
+  transition: width 0.3s ease;
+}
+
+.pcrPut {
+  background: var(--color-loss);
+  opacity: 0.7;
+  transition: width 0.3s ease;
+}
+
+.pcrRatio {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.pcrRatio[data-bullish="true"] { color: var(--color-profit); }
+.pcrRatio[data-bearish="true"] { color: var(--color-loss); }
+
+.pcrLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: var(--space-1);
+}
+
+.pcrLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-left: var(--space-2);
+}
+
+.pcrLegendDot[data-type="call"] { background: var(--color-profit); }
+.pcrLegendDot[data-type="put"]  { background: var(--color-loss); }
+
+.pcrLegendNote {
+  margin-left: auto;
+  font-style: italic;
+}
+
+/* ── OI by Strike ──────────────────────────────────── */
+
+.oiList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.oiRow {
+  display: grid;
+  grid-template-columns: 90px 1fr 120px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.oiRow[data-spot] {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  border-radius: 3px;
+  padding: 4px var(--space-2);
+}
+
+.oiStrike {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.oiStrike[data-spot] {
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.spotTag {
+  font-size: 9px;
+  margin-left: 4px;
+  color: var(--accent-primary);
+}
+
+.oiBars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  height: 12px;
+}
+
+.oiBarLeft {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.oiBarRight {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.oiBarCall {
+  height: 100%;
+  background: var(--color-profit);
+  border-radius: 2px;
+  opacity: 0.6;
+  min-width: 1px;
+  transition: width 0.3s ease;
+}
+
+.oiBarPut {
+  height: 100%;
+  background: var(--color-loss);
+  border-radius: 2px;
+  opacity: 0.6;
+  min-width: 1px;
+  transition: width 0.3s ease;
+}
+
+.oiValues {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.oiCall { color: var(--color-profit); text-align: right; padding-right: var(--space-2); }
+.oiPut  { color: var(--color-loss); }
+
+.oiLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: var(--space-2);
+}

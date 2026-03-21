@@ -26,6 +26,7 @@ export interface VenueQuote {
   totalCost:     number | null;
   estimatedFees: EstimatedFees | null;
   openInterest:  number | null;
+  volume24h:     number | null;
 }
 
 export interface EnrichedSide {

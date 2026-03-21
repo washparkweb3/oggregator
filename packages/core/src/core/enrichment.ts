@@ -25,6 +25,7 @@ export interface VenueQuote {
   totalCost: number | null;
   estimatedFees: EstimatedFees | null;
   openInterest: number | null;
+  volume24h: number | null;
 }
 
 export interface EnrichedSide {
@@ -121,6 +122,7 @@ function contractToVenueQuote(contract: NormalizedOptionContract): VenueQuote {
     totalCost,
     estimatedFees: fees,
     openInterest: contract.quote.openInterest,
+    volume24h: contract.quote.volume24h,
   };
 }
 
