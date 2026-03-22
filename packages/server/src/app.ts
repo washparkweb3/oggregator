@@ -1,5 +1,10 @@
+import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { registerRoutes } from './routes/index.js';
 import { bootstrapAdapters } from './adapters.js';
@@ -33,8 +38,16 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   registerRoutes(app);
 
-  // Fire-and-forget: server accepts requests immediately (503 via isReady() guard)
-  // while adapters + services load in the background (~5-15s).
+  // Serve the built web SPA in production (single-service deploy)
+  const here = dirname(fileURLToPath(import.meta.url));
+  const webDist = resolve(here, '../../web/dist');
+  if (!isDev && existsSync(webDist)) {
+    await app.register(fastifyStatic, { root: webDist, wildcard: false });
+    app.setNotFoundHandler((_req, reply) => {
+      return reply.sendFile('index.html');
+    });
+  }
+
   bootstrapAdapters(app.log).then(() => {
     ready = true;
     bootstrapServices(app.log).catch((err: unknown) => {

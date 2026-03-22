@@ -8,6 +8,7 @@
     "dev:web": "pnpm --filter @oggregator/web dev",
     "dev": "pnpm --filter @oggregator/server --filter @oggregator/web --parallel dev",
     "build": "pnpm -r build",
+    "start": "NODE_ENV=production node packages/server/dist/index.js",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test:run",

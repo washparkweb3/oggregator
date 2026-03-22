@@ -33,3 +33,6 @@ coverage/
 # Turbo
 .turbo/
 ROADMAP.md
+
+# Reference docs — local only, not shipped
+references/

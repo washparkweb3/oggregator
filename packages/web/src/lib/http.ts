@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const RETRY_DELAY_MS = 1500;
 const MAX_RETRIES = 10;
 
