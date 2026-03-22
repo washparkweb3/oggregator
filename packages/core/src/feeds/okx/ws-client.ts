@@ -159,7 +159,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
           const prev = this.quoteStore.get(item.instId);
           if (prev) {
             prev.openInterest = this.safeNum(item.oiCcy);
-            prev.openInterestUsd = this.safeNum(item.oiUsd);
+            // oiUsd is misleading — it's just contract count × $1, not notional.
+            // Leave openInterestUsd null so enrichment computes oiCcy × underlyingPrice.
             merged++;
           }
         }
