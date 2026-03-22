@@ -85,3 +85,30 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    padding: 0;
+    overflow-x: visible;
+  }
+
+  .divider { display: none; }
+
+  .cell {
+    min-width: unset;
+    padding: 4px 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 40%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--border-subtle) 40%, transparent);
+  }
+
+  .cell:nth-child(3n) { border-right: none; }
+
+  .label { font-size: 9px; }
+  .value { font-size: 11px; }
+  .sub   { font-size: 9px; }
+}

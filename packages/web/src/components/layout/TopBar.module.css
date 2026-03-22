@@ -144,3 +144,36 @@
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--bg-hover) 50%, transparent);
 }
+
+/* ── Mobile responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .bar {
+    grid-template-columns: auto 1fr auto;
+    padding: var(--space-2) var(--space-3);
+    padding-top: calc(var(--space-2) + var(--safe-top));
+    gap: var(--space-2);
+  }
+
+  .logo {
+    font-size: var(--text-lg);
+  }
+
+  /* Hide tab pills on mobile — bottom nav handles navigation */
+  .pillGroup {
+    display: none;
+  }
+
+  .right {
+    gap: var(--space-2);
+  }
+
+  /* Hide ⌘K on mobile — not relevant for touch */
+  .cmdk {
+    display: none;
+  }
+
+  .status {
+    font-size: 11px;
+  }
+}

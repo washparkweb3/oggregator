@@ -4,6 +4,7 @@ import { useAppStore } from "@stores/app-store";
 import { AssetPickerButton, Spinner, EmptyState } from "@components/ui";
 import { fmtUsd, dteDays, formatExpiry } from "@lib/format";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
+import { useIsMobile } from "@hooks/useIsMobile";
 import styles from "./GexView.module.css";
 
 export default function GexView() {
@@ -20,6 +21,9 @@ export default function GexView() {
       setExpiry(expiries.length > 1 ? expiries[1]! : expiries[0]!);
     }
   }, [expiries, expiry]);
+
+  const isMobile = useIsMobile();
+  const [showExplain, setShowExplain] = useState(false);
 
   const { data: chain, isLoading } = useChainQuery(underlying, expiry, activeVenues);
   const gex       = chain?.gex ?? [];
@@ -82,16 +86,27 @@ export default function GexView() {
         />
       ) : (
         <>
-          <div className={styles.explain}>
-            <span className={styles.explainItem} data-type="positive">
-              <span className={styles.explainDot} data-type="positive" />
-              Positive GEX — dealers are long gamma → they sell into rallies, buy dips → acts as a price magnet
-            </span>
-            <span className={styles.explainItem} data-type="negative">
-              <span className={styles.explainDot} data-type="negative" />
-              Negative GEX — dealers are short gamma → they buy into rallies, sell dips → accelerates moves
-            </span>
-          </div>
+          {isMobile ? (
+            <button className={styles.explainToggle} onClick={() => setShowExplain((v) => !v)}>
+              <span className={styles.explainToggleLabel}>
+                <span className={styles.explainDot} data-type="positive" /> Magnet
+                <span className={styles.explainDot} data-type="negative" /> Accelerator
+              </span>
+              <span className={styles.explainToggleChevron} data-expanded={showExplain}>ⓘ</span>
+            </button>
+          ) : null}
+          {(!isMobile || showExplain) && (
+            <div className={styles.explain}>
+              <span className={styles.explainItem} data-type="positive">
+                <span className={styles.explainDot} data-type="positive" />
+                Positive GEX — dealers are long gamma → they sell into rallies, buy dips → acts as a price magnet
+              </span>
+              <span className={styles.explainItem} data-type="negative">
+                <span className={styles.explainDot} data-type="negative" />
+                Negative GEX — dealers are short gamma → they buy into rallies, sell dips → accelerates moves
+              </span>
+            </div>
+          )}
 
           <div className={styles.chart}>
             <div className={styles.axis}>

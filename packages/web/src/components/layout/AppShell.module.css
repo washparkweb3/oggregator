@@ -1,5 +1,6 @@
 .shell {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -10,4 +11,11 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .main {
+    /* Reserve space for fixed bottom nav */
+    padding-bottom: calc(var(--mobile-nav-h) + var(--safe-bottom));
+  }
 }

@@ -82,3 +82,13 @@
 .wrap[data-active="true"] .hint {
   color: var(--accent-primary);
 }
+
+@media (max-width: 768px) {
+  .hint { display: none; }
+
+  .wrap {
+    gap: var(--space-1);
+  }
+
+  .input { width: 48px; }
+}

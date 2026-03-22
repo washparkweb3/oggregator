@@ -4,8 +4,6 @@
   overflow: hidden;
 }
 
-/* Sidebar spans the full height of the chain view */
-
 .main {
   flex: 1;
   display: flex;
@@ -31,16 +29,41 @@
   flex-shrink: 0;
 }
 
-.status {
-  padding: var(--space-10);
-  text-align: center;
-  color: var(--text-dim);
-  font-size: var(--text-base);
+/* ── Collapsible stats summary (mobile) ──────────────── */
+
+.mobileStatsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 5px var(--space-3);
+  background: var(--bg-elevated);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.error {
-  padding: var(--space-10);
-  text-align: center;
-  color: var(--color-loss);
-  font-size: var(--text-base);
+.mobileStatsToggle:active { background: var(--bg-hover); }
+
+.mstLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mstChevron {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: var(--space-2);
+}
+
+.mstChevron[data-expanded="true"] {
+  transform: rotate(90deg);
 }

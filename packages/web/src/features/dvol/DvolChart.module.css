@@ -143,10 +143,35 @@
 }
 
 .chartWrap {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
+}
+
+.resetBtn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  z-index: 3;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+
+.resetBtn:hover, .resetBtn:active {
+  opacity: 1;
+  background: var(--bg-hover);
 }
 
 .chartOverlay {
@@ -157,4 +182,48 @@
   justify-content: center;
   z-index: 2;
   background: rgba(10, 10, 10, 0.7);
+}
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .view {
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .header {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .titleRow {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  .stats {
+    flex-direction: row;
+    gap: var(--space-4);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .stat {
+    align-items: flex-start;
+    flex-shrink: 0;
+  }
+
+  .statLabel { font-size: 8px; }
+  .statValue { font-size: 11px; }
+  .statValue[data-accent] { font-size: 12px; }
+
+  .chartArea {
+    min-height: 200px;
+  }
 }

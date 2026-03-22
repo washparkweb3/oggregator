@@ -6,7 +6,9 @@ import { VENUES } from "@lib/venue-meta";
 import { venueColor } from "@lib/colors";
 import { IvChip, SpreadPill, EmptyState } from "@components/ui";
 import { fmtUsd, fmtDelta } from "@lib/format";
+import { useIsMobile } from "@hooks/useIsMobile";
 import ExpandedRow from "./ExpandedRow";
+import MobileStrikeCard from "./MobileStrikeCard";
 import styles from "./ChainTable.module.css";
 
 interface NewChainTableProps {
@@ -194,6 +196,7 @@ export default function NewChainTable({
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const atmRef  = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -223,6 +226,41 @@ export default function NewChainTable({
       else next.add(s);
       return next;
     });
+  }
+
+  if (isMobile) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.list} ref={listRef}>
+          {strikes.map((s) => {
+            const isAtm = s.strike === atmStrike;
+            return (
+              <div key={s.strike} ref={isAtm ? atmRef : undefined}>
+                {isAtm && forwardPrice != null && (
+                  <div className={styles.atmMarker}>
+                    <div className={styles.atmLine} />
+                    <div className={styles.atmPill}>
+                      <span className={styles.atmPillText}>
+                        Fwd {fmtUsd(forwardPrice)}
+                      </span>
+                    </div>
+                    <div className={styles.atmLine} />
+                  </div>
+                )}
+                <MobileStrikeCard
+                  strike={s}
+                  isAtm={isAtm}
+                  forwardPrice={forwardPrice}
+                  activeVenues={activeVenues}
+                  isExpanded={expanded.has(s.strike)}
+                  onToggle={() => toggleRow(s.strike)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   return (

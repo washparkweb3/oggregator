@@ -192,3 +192,32 @@
   color: var(--text-dim);
   line-height: 1.6;
 }
+
+/* ── Mobile: sidebar inside a drawer, full width ───── */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    background: transparent;
+  }
+
+  .header {
+    display: none; /* drawer has its own title */
+  }
+
+  .item {
+    padding: var(--space-3) var(--space-4);
+    min-height: var(--touch-min);
+  }
+
+  .footer {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .settleItems {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+}

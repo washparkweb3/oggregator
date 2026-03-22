@@ -223,3 +223,43 @@
   color: var(--text-primary);
   font-family: var(--font-mono);
 }
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .overlay {
+    padding-top: 0;
+    align-items: flex-end;
+  }
+
+  .palette {
+    width: 100%;
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .venueCircle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .venueCircleImg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .venueCircles {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .list { max-height: 50vh; }
+
+  .assetRow {
+    padding: var(--space-3) var(--space-4);
+    min-height: var(--touch-min);
+  }
+
+  .footer { display: none; }
+}

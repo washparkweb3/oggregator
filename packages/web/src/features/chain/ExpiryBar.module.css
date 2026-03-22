@@ -135,3 +135,30 @@
   background: color-mix(in srgb, var(--color-loss) 18%, transparent);
   color: var(--color-loss);
 }
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .strip {
+    flex-direction: column;
+    height: auto;
+    gap: 0;
+  }
+
+  .assetPicker {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: var(--space-2) var(--space-3);
+    min-height: var(--touch-min);
+  }
+
+  .tabs {
+    padding: 0 var(--space-2);
+  }
+
+  .tab {
+    padding: 0 var(--space-3);
+    min-height: 38px;
+    font-size: var(--text-xs);
+  }
+}

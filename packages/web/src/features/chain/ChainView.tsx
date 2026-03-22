@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { useAppStore } from "@stores/app-store";
 import { useChainQuery, useExpiries, useStats } from "./queries";
 import { useChainWs } from "@hooks/useChainWs";
 import { useOpenPalette } from "@components/layout";
 import { Spinner, EmptyState } from "@components/ui";
+import { useIsMobile } from "@hooks/useIsMobile";
+import { fmtIv, fmtUsdCompact } from "@lib/format";
 
 import ExpiryBar    from "./ExpiryBar";
 import StatStrip    from "./StatStrip";
@@ -55,8 +57,71 @@ export default function ChainView() {
     }
   }, [underlying, expiryByVenue, setActiveVenues]);
 
+  const isMobile = useIsMobile();
+  const [statsExpanded, setStatsExpanded] = useState(false);
+
   const myIvFloat = myIv !== "" ? parseFloat(myIv) / 100 : null;
   const myIvValid = myIvFloat != null && !isNaN(myIvFloat) && myIvFloat > 0;
+
+  if (isMobile) {
+    return (
+      <div className={styles.view}>
+        <div className={styles.main}>
+          {/* Collapsible stats summary */}
+          {chain && (
+            <button
+              className={styles.mobileStatsToggle}
+              onClick={() => setStatsExpanded((v) => !v)}
+            >
+              <span className={styles.mstLabel}>
+                ATM {fmtIv(chain.stats.atmIv)} · P/C {chain.stats.putCallOiRatio?.toFixed(2) ?? "—"} · OI {fmtUsdCompact(chain.stats.totalOiUsd)}
+              </span>
+              <span className={styles.mstChevron} data-expanded={statsExpanded}>›</span>
+            </button>
+          )}
+
+          {statsExpanded && chain && (
+            <StatStrip
+              stats={chain.stats}
+              underlying={chain.underlying}
+              dte={chain.dte}
+              connectionState={connectionState}
+              marketStats={marketStats}
+            />
+          )}
+
+          <div className={styles.tableArea}>
+            {isLoading && !chain && (
+              <Spinner size="lg" label="Loading chain data…" />
+            )}
+            {error && !chain && (
+              <EmptyState
+                icon="⚠"
+                title="Failed to load chain"
+                detail={error instanceof Error ? error.message : "Check your connection and try again."}
+              />
+            )}
+            {chain && chain.strikes.length === 0 && (
+              <EmptyState
+                icon="∅"
+                title="No options data"
+                detail={`No venues returned data for ${underlying} ${expiry}.`}
+              />
+            )}
+            {chain && chain.strikes.length > 0 && (
+              <ChainTable
+                strikes={chain.strikes}
+                atmStrike={chain.stats.atmStrike}
+                forwardPrice={chain.stats.forwardPriceUsd}
+                activeVenues={activeVenues}
+                myIv={myIvValid ? myIvFloat : null}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.view}>

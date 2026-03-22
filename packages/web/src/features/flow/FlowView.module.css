@@ -311,3 +311,72 @@
   background: color-mix(in srgb, var(--color-info) 15%, transparent);
   color: var(--color-info);
 }
+
+/* ── Mobile ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .view {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .header {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .titleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .title { font-size: var(--text-base); }
+
+  .legend {
+    gap: var(--space-3);
+    font-size: 11px;
+  }
+
+  .assetPicker {
+    display: flex;
+    flex-wrap: wrap;
+    width: auto;
+    padding: 2px;
+  }
+
+  .assetBtn {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  /* Stack trades as cards instead of grid rows */
+  .tableHeader { display: none; }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-3);
+    align-items: center;
+  }
+
+  .time { order: 1; }
+  .venue { order: 2; }
+  .side { order: 3; }
+  .instrument { order: 4; flex-basis: 100%; }
+  .notional { order: 5; font-size: var(--text-base); }
+  .size { order: 6; text-align: left; }
+  .iv { order: 7; text-align: left; }
+
+  .whaleIcon {
+    position: static;
+    left: unset;
+    order: 0;
+  }
+
+  .blockBadge {
+    position: static;
+    order: 8;
+  }
+}

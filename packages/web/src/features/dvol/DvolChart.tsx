@@ -29,8 +29,7 @@ export default function DvolChart() {
     if (!container) return;
 
     const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight || 500,
+      autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "#0A0A0A" },
         textColor: "#555B5E",
@@ -53,8 +52,8 @@ export default function DvolChart() {
         borderColor: "#1F2937",
         timeVisible: false,
       },
-      handleScale: { mouseWheel: true, pinch: true },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true },
+      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     });
 
     // DVOL (implied vol) — teal area
@@ -79,18 +78,7 @@ export default function DvolChart() {
     ivSeriesRef.current = ivSeries;
     hvSeriesRef.current = hvSeries;
 
-    const resizeObserver = new ResizeObserver(() => {
-      if (container) {
-        chart.applyOptions({
-          width:  container.clientWidth,
-          height: container.clientHeight,
-        });
-      }
-    });
-    resizeObserver.observe(container);
-
     return () => {
-      resizeObserver.disconnect();
       chart.remove();
       chartApiRef.current = null;
       ivSeriesRef.current = null;
@@ -98,7 +86,6 @@ export default function DvolChart() {
     };
   }, []);
 
-  // Update data when candles arrive or currency changes
   useEffect(() => {
     if (!ivSeriesRef.current || !data?.candles.length) return;
 
@@ -200,6 +187,13 @@ export default function DvolChart() {
       <div className={styles.chartArea}>
         {isLoading && <div className={styles.chartOverlay}><Spinner size="lg" /></div>}
         <div className={styles.chartWrap} ref={chartRef} />
+        <button
+          className={styles.resetBtn}
+          onClick={() => chartApiRef.current?.timeScale().fitContent()}
+          title="Reset zoom"
+        >
+          ⟲
+        </button>
       </div>
     </div>
   );

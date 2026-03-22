@@ -65,4 +65,28 @@
 
   --transition-fast: 120ms ease;
   --transition-base: 200ms ease-out;
+
+  /* Safe area insets for notched devices */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+
+  /* Mobile bottom nav height */
+  --mobile-nav-h: 56px;
+
+  /* Minimum touch target */
+  --touch-min: 44px;
+}
+
+/* ── Mobile overrides ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --text-xs:   12px;
+    --text-sm:   13px;
+    --text-base: 14px;
+    --text-lg:   17px;
+    --text-xl:   20px;
+    --space-6:   16px;
+  }
 }
