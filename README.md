@@ -1,43 +1,102 @@
-# oggregator
+<p align="center">
+  <img src="packages/web/src/assets/oggregator-logo.svg" alt="oggregator" width="320" />
+</p>
 
-Compare options pricing, greeks, and IV across Deribit, OKX, Binance, Bybit, and Derive in real-time.
+<p align="center">
+  <strong>Cross-venue crypto options aggregator — real-time pricing, greeks, and IV across 5 exchanges.</strong>
+</p>
 
-## Quick start
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.0.1-blue" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+  <img src="https://img.shields.io/badge/node-≥20-orange" />
+  <img src="https://img.shields.io/badge/venues-5-50D2C1" />
+</p>
+
+---
+
+## What this is
+
+oggregator connects to Deribit, OKX, Binance, Bybit, and Derive via WebSocket, normalizes option quotes to a canonical format, and serves a real-time cross-venue comparison dashboard. See the best price, IV, spread, and greeks for any strike across all venues simultaneously.
+
+## Venues
+
+| Venue | Connection | Settlement |
+|-------|-----------|------------|
+| Deribit | WebSocket | USDC |
+| OKX | WebSocket + REST | USDC |
+| Binance | WebSocket | USDT |
+| Bybit | WebSocket + REST | USDC |
+| Derive | WebSocket | USDC |
+
+## Quick Start
 
 ```bash
 pnpm install
 pnpm dev          # server (:3100) + web (:5173)
 ```
 
-## Quality gates
+Open [localhost:5173](http://localhost:5173). Data starts flowing within ~10 seconds as venue adapters connect.
+
+## Quality Gates
 
 ```bash
 pnpm typecheck    # tsc --noEmit across all packages
-pnpm test         # 211 doc-driven contract tests
-pnpm precommit    # typecheck + test
+pnpm test         # 293 contract tests
+pnpm precommit    # typecheck + test (run before every commit)
+pnpm build        # production build (server + web)
 ```
 
 ## Architecture
 
 ```
 packages/
-  core/     Venue feeds, canonical types, normalization, comparison
-  server/   Fastify REST + WS aggregation server
-  web/      React + Vite dashboard
+  protocol/   Shared Zod schemas for WS protocol between server ↔ web
+  core/       Venue adapters, canonical types, normalization, enrichment
+  server/     Fastify REST + WS API, serves enriched chain data
+  web/        React 19 + Vite dashboard (mobile-first responsive)
 ```
 
-All 5 venue adapters connect via WebSocket, normalize to `NormalizedOptionContract`, and serve cross-venue comparison grids through REST endpoints.
+Data flows: **Exchange WS → Core Adapter → Normalizer → Enrichment → Server API → Web Dashboard**
 
 ## API
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/health` | Service health |
-| `GET /api/venues` | Connected venues |
-| `GET /api/underlyings` | Base assets per venue |
-| `GET /api/expiries?underlying=BTC` | Expiry dates |
-| `GET /api/chains?underlying=BTC&expiry=2026-03-28` | Cross-venue option chain |
+| `GET /api/venues` | Connected venues and status |
+| `GET /api/underlyings` | Available base assets per venue |
+| `GET /api/expiries?underlying=BTC` | Expiry dates with per-venue availability |
+| `GET /api/chains?underlying=BTC&expiry=2026-03-28` | Cross-venue option chain with enriched stats |
+| `GET /api/surface?underlying=BTC` | IV surface (expiry × delta grid) |
+| `GET /api/stats?underlying=BTC` | DVOL, spot, IVR, 24h changes |
+| `GET /api/dvol-history?currency=BTC` | Historical DVOL candles |
+| `GET /api/flow?asset=BTC` | Recent options trades across venues |
+| `WS /ws/chain` | Real-time chain updates via WebSocket |
 
-## Reference docs
+## Dashboard
 
-Official API documentation per venue lives in `references/protocol-docs/`. Tests are written against these docs.
+The web dashboard includes:
+
+- **Chain** — Cross-venue option chain with best-price highlighting, IV chips, spread pills, and expandable per-venue detail
+- **Surface** — IV surface heatmap across delta levels and expiries with term structure indicator
+- **Flow** — Live options trade flow with whale detection and block trade badges
+- **Analytics** — OI by venue, put/call ratio by expiry, DVOL chart with HV overlay, OI by strike
+- **GEX** — Gamma exposure by strike with dealer positioning explanation
+
+Mobile-responsive with bottom navigation, shared toolbar, and full-screen settings drawer.
+
+## Deploy
+
+Single-service deploy — server serves the SPA in production:
+
+```bash
+pnpm build
+pnpm start        # NODE_ENV=production, serves API + static SPA
+```
+
+**Railway**: Build command `pnpm install && pnpm build`, start command `pnpm start`.
+
+## License
+
+MIT
