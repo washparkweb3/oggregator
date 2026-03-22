@@ -30,21 +30,10 @@ interface ExpiryPcr {
   ratio:   number;
 }
 
-// Each venue reports volume/OI in different units. Convert to USD notional.
-// Deribit: volume in BTC, OI in BTC → × spot
-// OKX: volume in contracts (0.01 BTC each), OI from oiCcy already in BTC → × spot
-// Bybit: volume in contracts (1 contract = 1 option, priced in USDT), OI in contracts
-// Binance: USDT-settled, volume/OI in contracts (1 contract priced in USDT)
-// Derive: USDC-settled, volume/OI in USDC
-const VENUE_VOL_MULTIPLIER: Record<string, (spot: number) => { vol: number; oi: number }> = {
-  deribit: (spot) => ({ vol: spot, oi: spot }),             // BTC → USD
-  okx:     (spot) => ({ vol: 0.01 * spot, oi: spot }),      // contracts × 0.01 BTC → USD; oiCcy already BTC
-  bybit:   (spot) => ({ vol: spot, oi: spot }),               // contracts × 1 unit each → × spot for USD
-  binance: (spot) => ({ vol: spot, oi: spot }),               // contracts × 1 unit each → × spot for USD
-  derive:  (spot) => ({ vol: 1, oi: spot }),                  // vol in USDC (already USD), OI in contracts → × spot
-};
-
-function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number): VenueVolume[] {
+// Use the enrichment layer's pre-computed USD values. These are either
+// venue-native (OKX oiUsd, Binance sumOpenInterestUsd) or computed from
+// raw × underlyingPrice (Deribit, Derive). No guessing multipliers here.
+function aggregateVenueVolume(chains: EnrichedChainResponse[]): VenueVolume[] {
   const map = new Map<string, { volume: number; oi: number }>();
 
   for (const chain of chains) {
@@ -52,9 +41,8 @@ function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number
       for (const side of [strike.call, strike.put]) {
         for (const [venue, q] of Object.entries(side.venues)) {
           const prev = map.get(venue) ?? { volume: 0, oi: 0 };
-          const mul  = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spotPrice);
-          prev.volume += (q?.volume24h ?? 0) * mul.vol;
-          prev.oi     += (q?.openInterest ?? 0) * mul.oi;
+          prev.oi     += q?.openInterestUsd ?? 0;
+          prev.volume += q?.volume24hUsd ?? 0;
           map.set(venue, prev);
         }
       }
@@ -69,18 +57,15 @@ function aggregateVenueVolume(chains: EnrichedChainResponse[], spotPrice: number
 
 function aggregateStrikeOi(chains: EnrichedChainResponse[], spotPrice: number | null): StrikeOi[] {
   const map = new Map<number, { callOi: number; putOi: number }>();
-  const spot = spotPrice ?? 1;
 
   for (const chain of chains) {
     for (const strike of chain.strikes) {
       const prev = map.get(strike.strike) ?? { callOi: 0, putOi: 0 };
-      for (const [venue, q] of Object.entries(strike.call.venues)) {
-        const mul = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spot);
-        prev.callOi += (q?.openInterest ?? 0) * mul.oi;
+      for (const q of Object.values(strike.call.venues)) {
+        prev.callOi += q?.openInterestUsd ?? 0;
       }
-      for (const [venue, q] of Object.entries(strike.put.venues)) {
-        const mul = (VENUE_VOL_MULTIPLIER[venue] ?? ((_: number) => ({ vol: 1, oi: 1 })))(spot);
-        prev.putOi += (q?.openInterest ?? 0) * mul.oi;
+      for (const q of Object.values(strike.put.venues)) {
+        prev.putOi += q?.openInterestUsd ?? 0;
       }
       map.set(strike.strike, prev);
     }
@@ -244,7 +229,7 @@ export default function AnalyticsView() {
   }
 
   const spotPrice    = chains[0]?.stats.spotIndexUsd ?? null;
-  const venueVolume  = aggregateVenueVolume(chains, spotPrice ?? 1);
+  const venueVolume  = aggregateVenueVolume(chains);
   const strikeOi     = aggregateStrikeOi(chains, spotPrice);
   const expiryPcr    = aggregateExpiryPcr(chains);
 

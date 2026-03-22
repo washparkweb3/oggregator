@@ -154,11 +154,12 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         const data = await this.fetchOkxApi('/api/v5/public/open-interest', { instType: 'OPTION', instFamily });
         let merged = 0;
         for (const raw of data) {
-          const item = raw as { instId?: string; oi?: string; oiCcy?: string };
+          const item = raw as { instId?: string; oi?: string; oiCcy?: string; oiUsd?: string };
           if (typeof item.instId !== 'string') continue;
           const prev = this.quoteStore.get(item.instId);
           if (prev) {
             prev.openInterest = this.safeNum(item.oiCcy);
+            prev.openInterestUsd = this.safeNum(item.oiUsd);
             merged++;
           }
         }
@@ -341,6 +342,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       indexPrice: null,
       volume24h: prev?.volume24h ?? null,
       openInterest: prev?.openInterest ?? null,
+      openInterestUsd: prev?.openInterestUsd ?? null,
+      volume24hUsd: prev?.volume24hUsd ?? null,
       greeks: this.parseGreeks(item),
       timestamp: Number(item.ts) || Date.now(),
     };
@@ -364,6 +367,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       indexPrice: null,
       volume24h: this.safeNum(item.vol24h) ?? prev?.volume24h ?? null,
       openInterest: prev?.openInterest ?? null,
+      openInterestUsd: prev?.openInterestUsd ?? null,
+      volume24hUsd: prev?.volume24hUsd ?? null,
       greeks: prev?.greeks ?? { ...EMPTY_GREEKS },
       timestamp: Number(item.ts) || Date.now(),
     };
@@ -385,6 +390,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       indexPrice: null,
       volume24h: this.safeNum(t.vol24h),
       openInterest: null,
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: { ...EMPTY_GREEKS },
       timestamp: Number(t.ts) || Date.now(),
     };
@@ -410,6 +417,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         indexPrice: null,
         volume24h: null,
         openInterest: null,
+        openInterestUsd: null,
+        volume24hUsd: null,
         greeks: this.parseGreeks(item),
         timestamp: Number(item.ts) || Date.now(),
       });

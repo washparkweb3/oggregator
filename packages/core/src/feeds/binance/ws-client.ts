@@ -286,6 +286,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
         indexPrice: this.safeNum(item.data.i),
         volume24h: prev?.volume24h ?? null,
         openInterest: prev?.openInterest ?? null,
+        openInterestUsd: prev?.openInterestUsd ?? null,
+        volume24hUsd: prev?.volume24hUsd ?? null,
         greeks: {
           delta: this.safeNum(item.data.d),
           gamma: this.safeNum(item.data.g),
@@ -355,8 +357,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
             if (typeof t.symbol !== 'string') continue;
             const prev = this.quoteStore.get(t.symbol);
             if (prev) {
-              // Store raw contract count — analytics layer handles USD conversion
               prev.openInterest = this.safeNum(t.sumOpenInterest);
+              prev.openInterestUsd = this.safeNum(t.sumOpenInterestUsd);
               merged++;
             }
           }

@@ -26,6 +26,8 @@ export interface VenueQuote {
   estimatedFees: EstimatedFees | null;
   openInterest: number | null;
   volume24h: number | null;
+  openInterestUsd: number | null;
+  volume24hUsd: number | null;
 }
 
 export interface EnrichedSide {
@@ -123,6 +125,19 @@ function contractToVenueQuote(contract: NormalizedOptionContract): VenueQuote {
     estimatedFees: fees,
     openInterest: contract.quote.openInterest,
     volume24h: contract.quote.volume24h,
+    // Use venue-provided USD values when available; otherwise compute from
+    // raw values × underlyingPrice (correct for inverse venues like Deribit).
+    // Prefer venue-native USD when available; fall back to raw × underlyingPrice.
+    // Deribit/Derive report OI/volume in base currency → multiply by spot.
+    // OKX/Binance provide oiUsd/sumOpenInterestUsd natively.
+    openInterestUsd: contract.quote.openInterestUsd
+      ?? (contract.quote.openInterest != null && contract.quote.underlyingPriceUsd != null
+        ? contract.quote.openInterest * contract.quote.underlyingPriceUsd
+        : null),
+    volume24hUsd: contract.quote.volume24hUsd
+      ?? (contract.quote.volume24h != null && contract.quote.underlyingPriceUsd != null
+        ? contract.quote.volume24h * contract.quote.underlyingPriceUsd
+        : null),
   };
 }
 

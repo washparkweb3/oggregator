@@ -307,6 +307,8 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       indexPrice: this.safeNum(t.I ?? t.index_price),
       volume24h: this.safeNum(stats?.v),
       openInterest: this.safeNum(stats?.oi),
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: op ? {
         delta: this.safeNum(op.d ?? op.delta),
         gamma: this.safeNum(op.g ?? op.gamma),

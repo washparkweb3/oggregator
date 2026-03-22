@@ -43,6 +43,10 @@ export interface LiveQuote {
   indexPrice: number | null;
   volume24h: number | null;
   openInterest: number | null;
+  /** USD-denominated OI when the venue provides it natively (Binance, OKX, Bybit). */
+  openInterestUsd: number | null;
+  /** USD-denominated 24h volume when the venue provides it natively (Bybit turnover). */
+  volume24hUsd: number | null;
   greeks: OptionGreeks;
   timestamp: number;
 }
@@ -202,6 +206,8 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
         indexPriceUsd: quote.indexPrice,
         volume24h: quote.volume24h,
         openInterest: quote.openInterest,
+        openInterestUsd: quote.openInterestUsd,
+        volume24hUsd: quote.volume24hUsd,
         estimatedFees: inst ? this.estimateFees(
           inst,
           this.normPrice(quote.markPrice, inst).usd,
@@ -250,6 +256,8 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
         indexPriceUsd: q.indexPrice,
         volume24h: q.volume24h,
         openInterest: q.openInterest,
+        openInterestUsd: q.openInterestUsd,
+        volume24hUsd: q.volume24hUsd,
         estimatedFees: this.estimateFees(
           inst,
           this.normPrice(q.markPrice, inst).usd,
@@ -319,6 +327,8 @@ export abstract class SdkBaseAdapter extends BaseAdapter {
       indexPrice: null,
       volume24h: null,
       openInterest: null,
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: { ...EMPTY_GREEKS },
       timestamp: 0,
     };

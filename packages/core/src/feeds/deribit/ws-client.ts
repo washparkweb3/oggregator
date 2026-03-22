@@ -229,6 +229,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
             indexPrice: null,
             volume24h: this.safeNum(s.volume),
             openInterest: this.safeNum(s.open_interest),
+            openInterestUsd: null,
+            volume24hUsd: null,
             greeks: {
               ...EMPTY_GREEKS,
               markIv: this.ivToFraction(s.mark_iv),
@@ -392,6 +394,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
         indexPrice: liveUnderlying ?? prev?.indexPrice ?? null,
         volume24h: prev?.volume24h ?? null,
         openInterest: prev?.openInterest ?? null,
+        openInterestUsd: prev?.openInterestUsd ?? null,
+        volume24hUsd: prev?.volume24hUsd ?? null,
         greeks: {
           ...(prev?.greeks ?? EMPTY_GREEKS),
           // markprice.options sends IV as fraction (0.49 = 49%), unlike ticker which sends percentage
@@ -456,6 +460,8 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
       indexPrice: this.safeNum(t.index_price),
       volume24h: this.safeNum(t.stats?.volume),
       openInterest: this.safeNum(t.open_interest),
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: {
         delta: this.safeNum(g?.delta),
         gamma: this.safeNum(g?.gamma),

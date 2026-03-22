@@ -48,6 +48,8 @@ export interface NormalizedQuote {
   indexPriceUsd: number | null;
   volume24h: number | null;
   openInterest: number | null;
+  openInterestUsd: number | null;
+  volume24hUsd: number | null;
   estimatedFees: EstimatedFees | null;
   timestamp: number | null;
   source: DataSource;

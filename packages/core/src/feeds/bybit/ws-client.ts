@@ -312,6 +312,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       indexPrice: this.safeNum(t.indexPrice),
       volume24h: this.safeNum(t.volume24h),
       openInterest: this.safeNum(t.openInterest),
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: {
         delta: this.safeNum(t.delta),
         gamma: this.safeNum(t.gamma),
@@ -339,6 +341,8 @@ export class BybitWsAdapter extends SdkBaseAdapter {
       indexPrice: this.safeNum(t.indexPrice),
       volume24h: this.safeNum(t.volume24h),
       openInterest: this.safeNum(t.openInterest),
+      openInterestUsd: null,
+      volume24hUsd: null,
       greeks: {
         delta: this.safeNum(t.delta),
         gamma: this.safeNum(t.gamma),
