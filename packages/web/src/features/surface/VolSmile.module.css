@@ -35,6 +35,48 @@
   color: var(--text-dim);
 }
 
+/* ── Mode picker — matches global 30px spec ──────────── */
+
+.modePicker {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 1px;
+  height: 26px;
+}
+
+.modeBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
+  height: 100%;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modeBtn:hover { color: var(--text-secondary); }
+
+.modeBtn[data-active="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.modeBtn[data-active="true"][data-type="call"] { color: var(--color-profit); }
+.modeBtn[data-active="true"][data-type="put"]  { color: var(--color-loss); }
+
+/* ── Legend ───────────────────────────────────────────── */
+
 .legend {
   display: flex;
   gap: var(--space-4);
@@ -57,9 +99,21 @@
 .legendLine[data-type="call"] { background: var(--color-profit); }
 .legendLine[data-type="put"]  { background: var(--color-loss); }
 
+.legendLine[data-dashed] {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-loss) 0px,
+    var(--color-loss) 3px,
+    transparent 3px,
+    transparent 5px
+  );
+}
+
+/* ── Chart ────────────────────────────────────────────── */
+
 .chartArea {
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   position: relative;
 }
 

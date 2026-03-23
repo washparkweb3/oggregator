@@ -1,5 +1,5 @@
-import { useRef, useEffect } from "react";
-import { createChart, LineSeries, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
+import { useRef, useEffect, useState } from "react";
+import { createChart, LineSeries, LineStyle, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
 
 import { useAppStore } from "@stores/app-store";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
@@ -7,12 +7,19 @@ import { Spinner } from "@components/ui";
 import { formatExpiry, dteDays } from "@lib/format";
 import styles from "./VolSmile.module.css";
 
+type SmileMode = "both" | "call" | "put";
+
+const ALL_VENUES = ["deribit", "okx", "bybit", "binance", "derive"];
+
 interface SmilePoint {
   strike: number;
   iv:     number;
 }
 
-function averageIv(venues: Record<string, { markIv?: number | null } | undefined>, activeVenues: string[]): number | null {
+function averageIv(
+  venues: Record<string, { markIv?: number | null } | undefined>,
+  activeVenues: string[],
+): number | null {
   let sum = 0;
   let count = 0;
 
@@ -26,7 +33,11 @@ function averageIv(venues: Record<string, { markIv?: number | null } | undefined
 }
 
 function extractSmile(
-  strikes: Array<{ strike: number; call: { venues: Record<string, { markIv?: number | null } | undefined> }; put: { venues: Record<string, { markIv?: number | null } | undefined> } }>,
+  strikes: Array<{
+    strike: number;
+    call: { venues: Record<string, { markIv?: number | null } | undefined> };
+    put:  { venues: Record<string, { markIv?: number | null } | undefined> };
+  }>,
   activeVenues: string[],
   spotPrice: number | null,
 ): { calls: SmilePoint[]; puts: SmilePoint[] } {
@@ -41,7 +52,6 @@ function extractSmile(
     if (putIv != null)  puts.push({ strike: s.strike, iv: putIv * 100 });
   }
 
-  // Filter to strikes within 30% of spot for readability
   const band = spotPrice ? spotPrice * 0.3 : Infinity;
   const inBand = (p: SmilePoint) => !spotPrice || Math.abs(p.strike - spotPrice) <= band;
 
@@ -50,8 +60,6 @@ function extractSmile(
     puts:  puts.filter(inBand).sort((a, b) => a.strike - b.strike),
   };
 }
-
-const ALL_VENUES = ["deribit", "okx", "bybit", "binance", "derive"];
 
 export default function VolSmile() {
   const underlying   = useAppStore((s) => s.underlying);
@@ -64,9 +72,8 @@ export default function VolSmile() {
     ? expiry
     : (expiries.length > 1 ? expiries[1]! : expiries[0] ?? "");
 
-  // Always fetch all venues so toggling doesn't kill the chart.
-  // Client-side averageIv filters to activeVenues.
   const { data: chain } = useChainQuery(underlying, smileExpiry, ALL_VENUES);
+  const [mode, setMode] = useState<SmileMode>("both");
 
   const chartRef    = useRef<HTMLDivElement>(null);
   const chartApi    = useRef<IChartApi | null>(null);
@@ -91,7 +98,7 @@ export default function VolSmile() {
       },
       rightPriceScale: {
         borderColor: "#1F2937",
-        scaleMargins: { top: 0.1, bottom: 0.1 },
+        scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       timeScale: {
         borderColor: "#1F2937",
@@ -105,20 +112,22 @@ export default function VolSmile() {
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     });
 
-    // Put series first so call line draws on top when values overlap
+    const priceFmt = { type: "custom" as const, formatter: (p: number) => `${p.toFixed(1)}%` };
+
     const ps = chart.addSeries(LineSeries, {
       color: "#CB3855",
       lineWidth: 2,
+      lineStyle: LineStyle.Dashed,
       title: "Put IV",
-      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+      priceFormat: priceFmt,
     });
 
     const cs = chart.addSeries(LineSeries, {
       color: "#00E997",
       lineWidth: 2,
+      lineStyle: LineStyle.Solid,
       title: "Call IV",
-      lastValueVisible: true,
-      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(1)}%` },
+      priceFormat: priceFmt,
     });
 
     chartApi.current = chart;
@@ -139,12 +148,22 @@ export default function VolSmile() {
     const spot = chain.stats.spotIndexUsd;
     const { calls, puts } = extractSmile(chain.strikes, activeVenues, spot);
 
-    // lightweight-charts requires time as number — use strike as the x-axis value
-    callSeries.current.setData(calls.map((p) => ({ time: p.strike as unknown as number, value: p.iv })) as never);
-    putSeries.current.setData(puts.map((p) => ({ time: p.strike as unknown as number, value: p.iv })) as never);
+    const toData = (points: SmilePoint[]) =>
+      points.map((p) => ({ time: p.strike as unknown as number, value: p.iv })) as never;
+
+    const showCall = mode === "both" || mode === "call";
+    const showPut  = mode === "both" || mode === "put";
+
+    callSeries.current.setData(showCall ? toData(calls) : []);
+    putSeries.current.setData(showPut ? toData(puts) : []);
+
+    // Put is dashed when both visible so call line stays readable on overlap
+    putSeries.current.applyOptions({
+      lineStyle: mode === "put" ? LineStyle.Solid : LineStyle.Dashed,
+    });
 
     chartApi.current?.timeScale().fitContent();
-  }, [chain, activeVenues]);
+  }, [chain, activeVenues, mode]);
 
   if (!chain) {
     return (
@@ -164,10 +183,31 @@ export default function VolSmile() {
           {smileExpiry && formatExpiry(smileExpiry)}
           {dte != null && <span className={styles.dte}>{dte}d</span>}
         </span>
+        <div className={styles.modePicker}>
+          {(["both", "call", "put"] as const).map((m) => (
+            <button
+              key={m}
+              className={styles.modeBtn}
+              data-active={m === mode}
+              data-type={m}
+              onClick={() => setMode(m)}
+            >
+              {m === "both" ? "Both" : m === "call" ? "Call" : "Put"}
+            </button>
+          ))}
+        </div>
       </div>
       <div className={styles.legend}>
-        <span className={styles.legendItem}><span className={styles.legendLine} data-type="call" /> Call IV</span>
-        <span className={styles.legendItem}><span className={styles.legendLine} data-type="put" /> Put IV</span>
+        {(mode === "both" || mode === "call") && (
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} data-type="call" /> Call IV
+          </span>
+        )}
+        {(mode === "both" || mode === "put") && (
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} data-type="put" data-dashed={mode === "both" || undefined} /> Put IV
+          </span>
+        )}
       </div>
       <div className={styles.chartArea}>
         <div className={styles.chartWrap} ref={chartRef} />
