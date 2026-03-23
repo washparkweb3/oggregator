@@ -15,7 +15,7 @@ const TABS = [
   { id: "surface",    label: "Surface" },
   { id: "flow",       label: "Flow", badge: "LIVE" },
   { id: "analytics",  label: "Analytics" },
-  { id: "gex",        label: "GEX", badge: "PRO" },
+  { id: "gex",        label: "GEX" },
 ] as const;
 
 export default function App() {

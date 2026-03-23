@@ -2,7 +2,7 @@ import type { EnrichedStrike, EnrichedSide } from "@shared/enriched";
 
 import { VENUES } from "@lib/venue-meta";
 import { IvChip, SpreadPill } from "@components/ui";
-import { fmtUsd, fmtDelta, fmtIv } from "@lib/format";
+import { fmtUsd, fmtDelta } from "@lib/format";
 import styles from "./MobileStrikeCard.module.css";
 
 interface MobileStrikeCardProps {
@@ -99,7 +99,11 @@ function ExpandedVenueDetail({ side, type, venues }: { side: EnrichedSide; type:
               </span>
               <span className={styles.vdCell}>
                 <span className={styles.vdLabel}>IV</span>
-                <span className={styles.vdIv}>{fmtIv(q?.markIv ?? null)}</span>
+                <IvChip iv={q?.markIv ?? null} size="sm" />
+              </span>
+              <span className={styles.vdCell}>
+                <span className={styles.vdLabel}>Spread</span>
+                <SpreadPill spreadPct={q?.spreadPct ?? null} />
               </span>
               <span className={styles.vdCell}>
                 <span className={styles.vdLabel}>Δ</span>
