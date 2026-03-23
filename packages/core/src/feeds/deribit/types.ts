@@ -49,6 +49,7 @@ export const DeribitBookSummarySchema = z.object({
   last: z.number().nullable().optional(),
   underlying_price: z.number().nullable().optional(),
   volume: z.number().nullable().optional(),
+  volume_usd: z.number().nullable().optional(),
   open_interest: z.number().nullable().optional(),
   mark_iv: z.number().nullable().optional(),
   creation_timestamp: z.number().optional(),

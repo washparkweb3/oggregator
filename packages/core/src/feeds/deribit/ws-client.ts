@@ -230,7 +230,7 @@ export class DeribitWsAdapter extends SdkBaseAdapter {
             volume24h: this.safeNum(s.volume),
             openInterest: this.safeNum(s.open_interest),
             openInterestUsd: null,
-            volume24hUsd: null,
+            volume24hUsd: this.safeNum(s.volume_usd),
             greeks: {
               ...EMPTY_GREEKS,
               markIv: this.ivToFraction(s.mark_iv),

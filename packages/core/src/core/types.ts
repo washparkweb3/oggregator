@@ -88,6 +88,8 @@ export interface VenueOptionChain {
   expiry: string;
   asOf: number;
   contracts: Record<string, NormalizedOptionContract>;
+  /** Venue-level aggregate daily volume in USD for this underlying (all expiries). */
+  aggregateVolume24hUsd?: number | null;
 }
 
 export interface ComparisonRow {
