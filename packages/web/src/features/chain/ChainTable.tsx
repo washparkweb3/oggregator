@@ -7,6 +7,8 @@ import { venueColor } from "@lib/colors";
 import { IvChip, SpreadPill, EmptyState } from "@components/ui";
 import { fmtUsd, fmtDelta } from "@lib/format";
 import { useIsMobile } from "@hooks/useIsMobile";
+import { useStrategyStore } from "@features/architect/strategy-store";
+import { useAppStore } from "@stores/app-store";
 import ExpandedRow from "./ExpandedRow";
 import MobileStrikeCard from "./MobileStrikeCard";
 import styles from "./ChainTable.module.css";
@@ -111,6 +113,33 @@ function StrikeRowItem({
 }: StrikeRowProps) {
   const callItm = forwardPrice != null && strike.strike < forwardPrice;
   const putItm  = forwardPrice != null && strike.strike > forwardPrice;
+  const addLeg  = useStrategyStore((s) => s.addLeg);
+  const expiry  = useAppStore((s) => s.expiry);
+
+  function handleAddLeg(
+    type: "call" | "put",
+    direction: "buy" | "sell",
+    price: number | null,
+    side: EnrichedSide,
+  ) {
+    if (price == null || price <= 0) return;
+    const bestVenue = side.bestVenue ?? "deribit";
+    const bestQ = bestVenue ? side.venues[bestVenue] : null;
+    addLeg({
+      type,
+      direction,
+      strike: strike.strike,
+      expiry,
+      quantity: 1,
+      entryPrice: price,
+      venue: bestVenue,
+      delta: bestQ?.delta ?? null,
+      gamma: bestQ?.gamma ?? null,
+      theta: bestQ?.theta ?? null,
+      vega: bestQ?.vega ?? null,
+      iv: bestQ?.markIv ?? null,
+    });
+  }
 
   const callQ = strike.call.bestVenue != null
     ? strike.call.venues[strike.call.bestVenue] ?? null
@@ -154,10 +183,20 @@ function StrikeRowItem({
         <div className={`${styles.spreadCell} ${callItm ? styles.itmCall : ""}`}>
           <SpreadPill spreadPct={callQ?.spreadPct ?? null} />
         </div>
-        <span className={`${styles.bidCell} ${styles.alignRight} ${callItm ? styles.itmCall : ""}`}>
+        <span
+          className={`${styles.bidCell} ${styles.alignRight} ${styles.clickable} ${callItm ? styles.itmCall : ""}`}
+          onClick={(e) => { e.stopPropagation(); handleAddLeg("call", "sell", callBba.bid, strike.call); }}
+          role="button"
+          title="Sell call at bid"
+        >
           {fmtUsd(callBba.bid)}
         </span>
-        <span className={`${styles.askCell} ${styles.alignRight} ${callItm ? styles.itmCall : ""}`}>
+        <span
+          className={`${styles.askCell} ${styles.alignRight} ${styles.clickable} ${callItm ? styles.itmCall : ""}`}
+          onClick={(e) => { e.stopPropagation(); handleAddLeg("call", "buy", callBba.ask, strike.call); }}
+          role="button"
+          title="Buy call at ask"
+        >
           {fmtUsd(callBba.ask)}
         </span>
 
@@ -168,10 +207,20 @@ function StrikeRowItem({
         </div>
 
         {/* PUT side: BID | ASK | SPREAD | IV | Δ | ν | γ | VENUES */}
-        <span className={`${styles.bidCell} ${putItm ? styles.itmPut : ""}`}>
+        <span
+          className={`${styles.bidCell} ${styles.clickable} ${putItm ? styles.itmPut : ""}`}
+          onClick={(e) => { e.stopPropagation(); handleAddLeg("put", "sell", putBba.bid, strike.put); }}
+          role="button"
+          title="Sell put at bid"
+        >
           {fmtUsd(putBba.bid)}
         </span>
-        <span className={`${styles.askCell} ${putItm ? styles.itmPut : ""}`}>
+        <span
+          className={`${styles.askCell} ${styles.clickable} ${putItm ? styles.itmPut : ""}`}
+          onClick={(e) => { e.stopPropagation(); handleAddLeg("put", "buy", putBba.ask, strike.put); }}
+          role="button"
+          title="Buy put at ask"
+        >
           {fmtUsd(putBba.ask)}
         </span>
         <div className={`${styles.spreadCell} ${putItm ? styles.itmPut : ""}`}>

@@ -204,6 +204,16 @@
   padding: 0 8px;
 }
 
+.clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background var(--transition-fast);
+}
+
+.clickable:hover {
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
 .ivCell {
   display: flex;
   align-items: center;

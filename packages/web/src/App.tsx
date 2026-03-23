@@ -6,12 +6,14 @@ import { SurfaceView }               from "@features/surface";
 import { GexView }                   from "@features/gex";
 import { FlowView }                  from "@features/flow";
 import { AnalyticsView }             from "@features/analytics";
+import { ArchitectView }             from "@features/architect";
 import { useAppStore }               from "@stores/app-store";
 
 import styles from "./App.module.css";
 
 const TABS = [
   { id: "chain",      label: "Chain" },
+  { id: "architect",  label: "Architect" },
   { id: "surface",    label: "Surface" },
   { id: "flow",       label: "Flow", badge: "LIVE" },
   { id: "analytics",  label: "Analytics" },
@@ -34,9 +36,10 @@ export default function App() {
   return (
     <AppShell underlyings={underlyings} tabs={TABS}>
       <div className={styles.panel}>
-        {activeTab === "chain"   && <ChainView />}
-        {activeTab === "surface" && <SurfaceView />}
-        {activeTab === "flow"    && <FlowView />}
+        {activeTab === "chain"     && <ChainView />}
+        {activeTab === "architect" && <ArchitectView />}
+        {activeTab === "surface"   && <SurfaceView />}
+        {activeTab === "flow"      && <FlowView />}
         {activeTab === "analytics" && <AnalyticsView />}
         {activeTab === "gex"       && <GexView />}
       </div>
