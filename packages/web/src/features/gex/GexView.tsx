@@ -50,7 +50,7 @@ export default function GexView() {
             <AssetPickerButton />
           </div>
           <span className={styles.subtitle}>
-            USD millions · positive = price magnet · negative = accelerator
+            Dealer hedging pressure per strike in $M. Where dealers must buy dips (green) or sell into dips (red).
           </span>
         </div>
         {spotPrice != null && (
@@ -99,11 +99,14 @@ export default function GexView() {
             <div className={styles.explain}>
               <span className={styles.explainItem} data-type="positive">
                 <span className={styles.explainDot} data-type="positive" />
-                Positive GEX — dealers are long gamma → they sell into rallies, buy dips → acts as a price magnet
+                Positive GEX: dealers buy dips and sell rallies to stay hedged → dampens volatility, pins price near high-OI strikes
               </span>
               <span className={styles.explainItem} data-type="negative">
                 <span className={styles.explainDot} data-type="negative" />
-                Negative GEX — dealers are short gamma → they buy into rallies, sell dips → accelerates moves
+                Negative GEX: dealers sell into dips and buy into rallies → amplifies moves, expect bigger swings
+              </span>
+              <span className={styles.explainFormula}>
+                GEX per strike = OI × Gamma × Spot² × contract size. Calls contribute positive, puts negative.
               </span>
             </div>
           )}

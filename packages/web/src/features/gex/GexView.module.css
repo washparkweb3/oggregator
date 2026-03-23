@@ -178,6 +178,14 @@
   background: var(--color-loss);
 }
 
+.explainFormula {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  font-style: italic;
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
 .explainToggle {
   display: flex;
   align-items: center;
