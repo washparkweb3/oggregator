@@ -193,27 +193,42 @@ export function enrichComparisonRow(row: ComparisonRow): EnrichedStrike {
 }
 
 /**
- * Walks all venue chains to extract the first non-null spot/forward prices.
- * Venue chains are iterated in registration order so the first entry wins;
- * callers should pass chains in priority order (e.g. Deribit first).
+ * Aggregates reference prices across venue chains.
+ *
+ * For multi-venue views, a simple average across venue-level spot/forward values
+ * is less venue-biased than "first chain wins" and keeps summary stats aligned
+ * with the selected venue set.
  */
 function extractPrices(
   venueChains: VenueOptionChain[],
 ): { spotIndexUsd: number | null; forwardPriceUsd: number | null } {
-  let spotIndexUsd: number | null = null;
-  let forwardPriceUsd: number | null = null;
+  const spots: number[] = [];
+  const forwards: number[] = [];
 
-  outer: for (const vc of venueChains) {
+  for (const vc of venueChains) {
+    let venueSpot: number | null = null;
+    let venueForward: number | null = null;
+
     for (const contract of Object.values(vc.contracts)) {
-      if (spotIndexUsd === null) {
-        spotIndexUsd = contract.quote.indexPriceUsd;
+      if (venueSpot === null && contract.quote.indexPriceUsd !== null) {
+        venueSpot = contract.quote.indexPriceUsd;
       }
-      if (forwardPriceUsd === null) {
-        forwardPriceUsd = contract.quote.underlyingPriceUsd;
+      if (venueForward === null && contract.quote.underlyingPriceUsd !== null) {
+        venueForward = contract.quote.underlyingPriceUsd;
       }
-      if (spotIndexUsd !== null && forwardPriceUsd !== null) break outer;
+      if (venueSpot !== null && venueForward !== null) break;
     }
+
+    if (venueSpot !== null) spots.push(venueSpot);
+    if (venueForward !== null) forwards.push(venueForward);
   }
+
+  const spotIndexUsd = spots.length > 0
+    ? spots.reduce((sum, value) => sum + value, 0) / spots.length
+    : null;
+  const forwardPriceUsd = forwards.length > 0
+    ? forwards.reduce((sum, value) => sum + value, 0) / forwards.length
+    : null;
 
   return { spotIndexUsd, forwardPriceUsd };
 }
@@ -223,6 +238,32 @@ function extractPrices(
  * Delta signs: calls are positive, puts are negative — callers pass the
  * signed target so directionality is preserved (e.g. -0.25 for 25Δ put).
  */
+function averageMetric(
+  venues: Partial<Record<VenueId, VenueQuote>>,
+  pick: (quote: VenueQuote) => number | null,
+): number | null {
+  let sum = 0;
+  let count = 0;
+
+  for (const quote of Object.values(venues)) {
+    if (quote === undefined) continue;
+    const value = pick(quote);
+    if (value === null) continue;
+    sum += value;
+    count += 1;
+  }
+
+  return count > 0 ? sum / count : null;
+}
+
+function averageSideDelta(side: EnrichedSide): number | null {
+  return averageMetric(side.venues, (quote) => quote.delta);
+}
+
+function averageSideIv(side: EnrichedSide): number | null {
+  return averageMetric(side.venues, (quote) => quote.markIv);
+}
+
 function closestDeltaStrike(
   strikes: EnrichedStrike[],
   targetDelta: number,
@@ -233,13 +274,7 @@ function closestDeltaStrike(
 
   for (const s of strikes) {
     const sideData = side === 'call' ? s.call : s.put;
-    let delta: number | null = null;
-    for (const vq of Object.values(sideData.venues)) {
-      if (vq !== undefined && vq.delta !== null) {
-        delta = vq.delta;
-        break;
-      }
-    }
+    const delta = averageSideDelta(sideData);
     if (delta === null) continue;
 
     const dist = Math.abs(delta - targetDelta);
@@ -302,8 +337,9 @@ export function computeChainStats(
       if (dist < minDist) {
         minDist = dist;
         atmStrike = s.strike;
-        // Call IV is convention for ATM vol; put IV should be equal by put-call parity.
-        atmIv = s.call.bestIv;
+        // Call IV is convention for ATM vol; average selected venues to match
+        // the current venue filter rather than inheriting one venue's mark.
+        atmIv = averageSideIv(s.call);
       }
     }
   }
@@ -319,8 +355,8 @@ export function computeChainStats(
   const call25Strike = closestDeltaStrike(strikes, 0.25, 'call');
   let skew25d: number | null = null;
   if (put25Strike !== null && call25Strike !== null) {
-    const putIv = put25Strike.put.bestIv;
-    const callIv = call25Strike.call.bestIv;
+    const putIv = averageSideIv(put25Strike.put);
+    const callIv = averageSideIv(call25Strike.call);
     skew25d = putIv !== null && callIv !== null ? putIv - callIv : null;
   }
 
@@ -341,19 +377,15 @@ export function computeChainStats(
  *
  * GEX = Σ(OI × gamma × contractSize × spot²) / 1_000_000
  *
- * Puts contribute negative GEX because market makers are short puts and long
- * calls against retail flow — their delta hedge direction reverses at strikes
- * with high put OI, creating a local support/resistance dynamic.
- *
- * Uses original ComparisonRows to access contractSize per venue,
- * which isn't available on the enriched VenueQuote.
+ * Each venue contribution uses that venue's own spot/index reference when
+ * available. This avoids anchoring multi-venue GEX to whichever venue happened
+ * to arrive first.
  */
 function computeGexFromRows(
   rows: ComparisonRow[],
   strikes: EnrichedStrike[],
-  spotPrice: number,
+  fallbackSpotPrice: number,
 ): GexStrike[] {
-  const spot2 = spotPrice * spotPrice;
   const result: GexStrike[] = [];
 
   const rowByStrike = new Map<number, ComparisonRow>(
@@ -369,22 +401,30 @@ function computeGexFromRows(
       VenueId,
       VenueQuote | undefined,
     ][]) {
-      if (vq === undefined || vq.openInterest === null || vq.gamma === null)
+      if (vq === undefined || vq.openInterest === null || vq.gamma === null) {
         continue;
+      }
       const original = row?.call[venueKey];
       const size = original?.contractSize ?? 1;
-      callGex += (vq.openInterest * vq.gamma * size * spot2) / 1_000_000;
+      const venueSpot = original?.quote.indexPriceUsd
+        ?? original?.quote.underlyingPriceUsd
+        ?? fallbackSpotPrice;
+      callGex += (vq.openInterest * vq.gamma * size * venueSpot * venueSpot) / 1_000_000;
     }
 
     for (const [venueKey, vq] of Object.entries(s.put.venues) as [
       VenueId,
       VenueQuote | undefined,
     ][]) {
-      if (vq === undefined || vq.openInterest === null || vq.gamma === null)
+      if (vq === undefined || vq.openInterest === null || vq.gamma === null) {
         continue;
+      }
       const original = row?.put[venueKey];
       const size = original?.contractSize ?? 1;
-      putGex += (vq.openInterest * vq.gamma * size * spot2) / 1_000_000;
+      const venueSpot = original?.quote.indexPriceUsd
+        ?? original?.quote.underlyingPriceUsd
+        ?? fallbackSpotPrice;
+      putGex += (vq.openInterest * vq.gamma * size * venueSpot * venueSpot) / 1_000_000;
     }
 
     result.push({ strike: s.strike, gexUsdMillions: callGex - putGex });
@@ -406,17 +446,15 @@ export function computeDte(expiry: string): number {
 /**
  * Builds the IV surface row for a single expiry.
  *
- * Finds the strike nearest to each standard delta level and reads bestIv from
- * that strike. Using bestIv (lowest IV across venues) rather than a single
- * venue's mark keeps the surface representative of the most competitive quote.
+ * For multi-venue selections, the surface uses the average mark IV across the
+ * selected venues at the strike closest to each target delta. Single-venue
+ * selections naturally collapse to that venue's exact smile.
  */
 export function computeIvSurface(
   expiry: string,
   dte: number,
   strikes: EnrichedStrike[],
 ): IvSurfaceRow {
-  // ATM is defined as call delta ≈ 0.50 (not exactly 0.50 due to skew, but
-  // closest available strike).
   const atm = closestDeltaStrike(strikes, 0.5, 'call');
   const d25c = closestDeltaStrike(strikes, 0.25, 'call');
   const d10c = closestDeltaStrike(strikes, 0.1, 'call');
@@ -426,11 +464,11 @@ export function computeIvSurface(
   return {
     expiry,
     dte,
-    delta10p: d10p?.put.bestIv ?? null,
-    delta25p: d25p?.put.bestIv ?? null,
-    atm: atm?.call.bestIv ?? null,
-    delta25c: d25c?.call.bestIv ?? null,
-    delta10c: d10c?.call.bestIv ?? null,
+    delta10p: d10p ? averageSideIv(d10p.put) : null,
+    delta25p: d25p ? averageSideIv(d25p.put) : null,
+    atm: atm ? averageSideIv(atm.call) : null,
+    delta25c: d25c ? averageSideIv(d25c.call) : null,
+    delta10c: d10c ? averageSideIv(d10c.call) : null,
   };
 }
 

@@ -115,7 +115,7 @@ export default function SurfaceView() {
             <VenuePickerButton compact />
           </div>
           <span className={styles.subtitle}>
-            Best IV (lowest mark) per delta level and expiry
+            Average mark IV across selected venues per delta level and expiry
           </span>
         </div>
         <div className={styles.termStructure}>

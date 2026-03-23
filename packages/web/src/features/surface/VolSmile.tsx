@@ -12,6 +12,19 @@ interface SmilePoint {
   iv:     number;
 }
 
+function averageIv(venues: Record<string, { markIv?: number | null } | undefined>, activeVenues: string[]): number | null {
+  let sum = 0;
+  let count = 0;
+
+  for (const [venueId, quote] of Object.entries(venues)) {
+    if (!activeVenues.includes(venueId) || quote?.markIv == null) continue;
+    sum += quote.markIv;
+    count += 1;
+  }
+
+  return count > 0 ? sum / count : null;
+}
+
 function extractSmile(
   strikes: Array<{ strike: number; call: { venues: Record<string, { markIv?: number | null } | undefined> }; put: { venues: Record<string, { markIv?: number | null } | undefined> } }>,
   activeVenues: string[],
@@ -21,21 +34,11 @@ function extractSmile(
   const puts: SmilePoint[] = [];
 
   for (const s of strikes) {
-    // Best (lowest) IV across active venues for each side
-    let bestCallIv: number | null = null;
-    let bestPutIv: number | null = null;
+    const callIv = averageIv(s.call.venues, activeVenues);
+    const putIv = averageIv(s.put.venues, activeVenues);
 
-    for (const [v, q] of Object.entries(s.call.venues)) {
-      if (!activeVenues.includes(v) || !q?.markIv) continue;
-      if (bestCallIv == null || q.markIv < bestCallIv) bestCallIv = q.markIv;
-    }
-    for (const [v, q] of Object.entries(s.put.venues)) {
-      if (!activeVenues.includes(v) || !q?.markIv) continue;
-      if (bestPutIv == null || q.markIv < bestPutIv) bestPutIv = q.markIv;
-    }
-
-    if (bestCallIv != null) calls.push({ strike: s.strike, iv: bestCallIv * 100 });
-    if (bestPutIv != null)  puts.push({ strike: s.strike, iv: bestPutIv * 100 });
+    if (callIv != null) calls.push({ strike: s.strike, iv: callIv * 100 });
+    if (putIv != null)  puts.push({ strike: s.strike, iv: putIv * 100 });
   }
 
   // Filter to strikes within 30% of spot for readability
