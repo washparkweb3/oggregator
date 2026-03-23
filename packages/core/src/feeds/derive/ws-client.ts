@@ -159,9 +159,9 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
   }
 
   /**
-   * Fetch tickers for a single currency+expiry and populate the QuoteStore.
-   * Derive's bulk get_tickers omits instruments with zero liquidity, so we
-   * fall back to per-instrument get_ticker calls when the bulk response is empty.
+   * Fetch tickers for a single currency+expiry via bulk get_tickers.
+   * Instruments with zero liquidity won't appear — the WS ticker_slim
+   * subscription fills them in as quotes arrive.
    */
   private async fetchTickersForExpiry(currency: string, expiryDate: string): Promise<number> {
     const result = await this.rpc.call('public/get_tickers', {
@@ -181,26 +181,6 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       if (!parsed.success) continue;
       this.quoteStore.set(name, this.parseTickerAbbreviated(parsed.data));
       count++;
-    }
-
-    if (count > 0) return count;
-
-    // Bulk endpoint returned nothing — fetch per-instrument for illiquid expiries
-    const expIso = `${expiryDate.slice(0, 4)}-${expiryDate.slice(4, 6)}-${expiryDate.slice(6, 8)}`;
-    const matching = this.instruments.filter(
-      (i) => i.base === currency && i.expiry === expIso,
-    );
-
-    for (const inst of matching) {
-      try {
-        const ticker = await this.rpc.call('public/get_ticker', {
-          instrument_name: inst.exchangeSymbol,
-        });
-        const parsed = DeriveTickerSchema.safeParse(ticker);
-        if (!parsed.success) continue;
-        this.quoteStore.set(inst.exchangeSymbol, this.parseTickerAbbreviated(parsed.data));
-        count++;
-      } catch { /* delisted or expired instrument */ }
     }
 
     return count;
@@ -223,55 +203,6 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       log.info({ count: totalCount, currency, expiries: expiries.size }, 'fetched tickers');
     }
 
-    // Fetch aggregate notional volume per currency from public/statistics.
-    // stats.v on individual tickers is premium volume — this gives us the
-    // notional figure that matches Derive's own dashboard.
-    await this.fetchNotionalVolume();
-  }
-
-  // Distributes daily_notional_volume from public/statistics across instruments
-  // weighted by premium volume, so per-instrument volume24hUsd is notional.
-  private async fetchNotionalVolume(): Promise<void> {
-    for (const currency of CURRENCIES) {
-      try {
-        const result = await this.rpc.call('public/statistics', {
-          instrument_name: 'OPTION',
-          currency,
-        });
-
-        const res = result as { daily_notional_volume?: string } | null;
-        const notional = Number(res?.daily_notional_volume);
-        if (!Number.isFinite(notional) || notional <= 0) continue;
-
-        // Sum premium volume across all instruments for this currency to get weights
-        let totalPremium = 0;
-        const entries: Array<{ symbol: string; premium: number }> = [];
-
-        for (const inst of this.instruments) {
-          if (inst.base !== currency) continue;
-          const q = this.quoteStore.get(inst.exchangeSymbol);
-          const pv = q?.volume24h ?? 0;
-          if (pv > 0) {
-            entries.push({ symbol: inst.exchangeSymbol, premium: pv });
-            totalPremium += pv;
-          }
-        }
-
-        if (totalPremium <= 0) continue;
-
-        // Distribute notional proportionally
-        for (const e of entries) {
-          const q = this.quoteStore.get(e.symbol);
-          if (q) {
-            q.volume24hUsd = (e.premium / totalPremium) * notional;
-          }
-        }
-
-        log.info({ currency, notional: notional.toFixed(0), instruments: entries.length }, 'distributed notional volume');
-      } catch (err: unknown) {
-        log.warn({ currency, err: String(err) }, 'statistics fetch failed');
-      }
-    }
   }
 
   // ─── WebSocket subscriptions ──────────────────────────────────
@@ -355,8 +286,7 @@ export class DeriveWsAdapter extends SdkBaseAdapter {
       lastPrice: null,
       underlyingPrice: this.safeNum(t.I ?? t.index_price),
       indexPrice: this.safeNum(t.I ?? t.index_price),
-      // Derive stats.v is premium volume in USDC — already USD
-      volume24h: this.safeNum(stats?.v),
+      volume24h: this.safeNum(stats?.c),
       openInterest: this.safeNum(stats?.oi),
       openInterestUsd: null,
       volume24hUsd: this.safeNum(stats?.v),

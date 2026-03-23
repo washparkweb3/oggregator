@@ -26,9 +26,9 @@ const WS_URL = 'wss://ws.okx.com:8443/ws/v5/public';
  * OKX options adapter using raw WebSocket + fetch.
  *
  * REST (instrument loading + initial snapshot):
- *   GET /api/v5/public/instruments?instType=OPTION&uly=BTC-USD
+ *   GET /api/v5/public/instruments?instType=OPTION&instFamily=BTC-USD
  *   GET /api/v5/market/tickers?instType=OPTION&instFamily=BTC-USD
- *   GET /api/v5/public/opt-summary?uly=BTC-USD
+ *   GET /api/v5/public/opt-summary?instFamily=BTC-USD
  *
  * WebSocket (live updates):
  *   wss://ws.okx.com:8443/ws/v5/public
@@ -65,9 +65,9 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   protected async fetchInstruments(): Promise<CachedInstrument[]> {
     const instruments: CachedInstrument[] = [];
 
-    for (const uly of OkxWsAdapter.INST_FAMILIES) {
+    for (const instFamily of OkxWsAdapter.INST_FAMILIES) {
       try {
-        const data = await this.fetchOkxApi('/api/v5/public/instruments', { instType: 'OPTION', uly });
+        const data = await this.fetchOkxApi('/api/v5/public/instruments', { instType: 'OPTION', instFamily });
         for (const raw of data) {
           const parsed = OkxInstrumentSchema.safeParse(raw);
           if (!parsed.success) continue;
@@ -77,7 +77,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        log.warn({ uly, err: message }, 'failed to load instruments');
+        log.warn({ instFamily, err: message }, 'failed to load instruments');
       }
     }
 
@@ -137,7 +137,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       }
 
       try {
-        const data = await this.fetchOkxApi('/api/v5/public/opt-summary', { uly: instFamily });
+        const data = await this.fetchOkxApi('/api/v5/public/opt-summary', { instFamily });
         for (const raw of data) {
           const parsed = OkxOptSummarySchema.safeParse(raw);
           if (!parsed.success) continue;
@@ -159,8 +159,8 @@ export class OkxWsAdapter extends SdkBaseAdapter {
           const prev = this.quoteStore.get(item.instId);
           if (prev) {
             prev.openInterest = this.safeNum(item.oiCcy);
-            // oiUsd is misleading — it's just contract count × $1, not notional.
-            // Leave openInterestUsd null so enrichment computes oiCcy × underlyingPrice.
+            // oiUsd is per-contract USD value, not notional. Enrichment computes
+            // the correct notional from oiCcy × underlyingPrice.
             merged++;
           }
         }
@@ -358,11 +358,12 @@ export class OkxWsAdapter extends SdkBaseAdapter {
     if (!inst) return;
 
     const prev = this.quoteStore.get(id);
-    const vol = this.safeNum(item.vol24h) ?? prev?.volume24h ?? null;
+    const volContracts = this.safeNum(item.vol24h) ?? null;
+    const ctSize = inst.contractSize ?? 0.01;
+    const volBase = volContracts != null ? volContracts * ctSize : prev?.volume24h ?? null;
     const underlying = prev?.underlyingPrice ?? null;
-    // OKX vol24h is contracts — multiply by contractSize (0.01 BTC) × underlying for USD
-    const volUsd = vol != null && underlying != null && inst.contractSize != null
-      ? vol * inst.contractSize * underlying
+    const volUsd = volBase != null && underlying != null
+      ? volBase * underlying
       : prev?.volume24hUsd ?? null;
 
     const quote: LiveQuote = {
@@ -374,7 +375,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       lastPrice: this.safeNum(item.last),
       underlyingPrice: prev?.underlyingPrice ?? null,
       indexPrice: null,
-      volume24h: vol,
+      volume24h: volBase,
       openInterest: prev?.openInterest ?? null,
       openInterestUsd: prev?.openInterestUsd ?? null,
       volume24hUsd: volUsd,
@@ -388,6 +389,13 @@ export class OkxWsAdapter extends SdkBaseAdapter {
   // ── normalizers ───────────────────────────────────────────────
 
   private tickerToQuote(t: OkxTicker): LiveQuote {
+    const inst = this.instrumentMap.get(t.instId);
+    const volContracts = this.safeNum(t.vol24h);
+    const ctSize = inst?.contractSize ?? 0.01;
+    // Convert from contracts to base currency so enrichment's fallback
+    // (volume24h × underlyingPrice) produces correct notional.
+    const volBase = volContracts != null ? volContracts * ctSize : null;
+
     return {
       bidPrice: this.safeNum(t.bidPx),
       askPrice: this.safeNum(t.askPx),
@@ -397,7 +405,7 @@ export class OkxWsAdapter extends SdkBaseAdapter {
       lastPrice: this.safeNum(t.last),
       underlyingPrice: null,
       indexPrice: null,
-      volume24h: this.safeNum(t.vol24h),
+      volume24h: volBase,
       openInterest: null,
       openInterestUsd: null,
       volume24hUsd: null,

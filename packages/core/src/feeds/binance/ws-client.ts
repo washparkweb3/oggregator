@@ -85,7 +85,8 @@ export class BinanceWsAdapter extends SdkBaseAdapter {
     const parsed = BinanceInstrumentSchema.safeParse(item);
     if (!parsed.success) return null;
 
-    const { symbol: sym, quoteAsset, unit, minQty, filters } = parsed.data;
+    const { symbol: sym, status, quoteAsset, unit, minQty, filters } = parsed.data;
+    if (status && status !== 'TRADING') return null;
     // Strike can be decimal for low-price assets (DOGE: 0.085, XRP: 1.5)
     const parts = sym.match(/^(\w+)-(\d{6})-([\d.]+)-([CP])$/);
     if (!parts) return null;

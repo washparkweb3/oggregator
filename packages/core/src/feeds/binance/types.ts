@@ -38,6 +38,7 @@ export type BinancePriceFilter = z.infer<typeof BinancePriceFilterSchema>;
 
 export const BinanceInstrumentSchema = z.object({
   symbol: z.string(),
+  status: z.string().optional(),
   quoteAsset: z.string().optional(),
   unit: z.number().optional(),
   minQty: z.string().optional(),
