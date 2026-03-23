@@ -199,6 +199,16 @@
   color: rgb(248, 113, 113);
 }
 
+/* ── Vol smile ──────────────────────────────────────── */
+
+.smileWrap {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  min-height: 350px;
+}
+
 /* ── Mobile ──────────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -251,4 +261,9 @@
 
   .legendBar { width: 80px; flex-shrink: 0; }
   .legendMin, .legendMax { white-space: nowrap; font-size: 10px; }
+
+  .smileWrap {
+    padding: var(--space-3);
+    min-height: 280px;
+  }
 }

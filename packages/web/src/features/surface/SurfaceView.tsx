@@ -5,6 +5,7 @@ import { Spinner, EmptyState, AssetPickerButton } from "@components/ui";
 import { fmtIv, formatExpiry, dteDays } from "@lib/format";
 import { heatmapColor } from "@lib/colors";
 import { useSurface } from "./queries";
+import VolSmile from "./VolSmile";
 import styles from "./SurfaceView.module.css";
 
 const DELTA_COLS = [
@@ -68,8 +69,9 @@ function computeMinMax(rows: IvSurfaceRow[]): { min: number; max: number } {
 }
 
 export default function SurfaceView() {
-  const underlying = useAppStore((s) => s.underlying);
-  const { data, isLoading, error } = useSurface(underlying);
+  const underlying   = useAppStore((s) => s.underlying);
+  const activeVenues = useAppStore((s) => s.activeVenues);
+  const { data, isLoading, error } = useSurface(underlying, activeVenues);
 
   if (isLoading) {
     return (
@@ -161,6 +163,10 @@ export default function SurfaceView() {
         <div className={styles.legendBar} />
         <span className={styles.legendMin}>{fmtIv(minIv)} low</span>
         <span className={styles.legendMax}>high {fmtIv(maxIv)}</span>
+      </div>
+
+      <div className={styles.smileWrap}>
+        <VolSmile />
       </div>
     </div>
   );

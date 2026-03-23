@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 
 import { Spinner, EmptyState } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
+import { useAppStore } from "@stores/app-store";
 import { fmtIv } from "@lib/format";
 import { useUnderlyings } from "@features/chain/queries";
 import { useFlow } from "./queries";
@@ -144,6 +145,7 @@ export default function FlowView() {
 
   const [mode, setMode] = useState<FlowMode>("all");
   const [asset, setAsset] = useState<string>("BTC");
+  const activeVenues = useAppStore((s) => s.activeVenues);
   const { data, isLoading, error } = useFlow(asset);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
@@ -185,7 +187,7 @@ export default function FlowView() {
     );
   }
 
-  const trades = data?.trades ?? [];
+  const trades = (data?.trades ?? []).filter((t) => activeVenues.includes(t.venue));
 
   return (
     <div className={styles.view}>

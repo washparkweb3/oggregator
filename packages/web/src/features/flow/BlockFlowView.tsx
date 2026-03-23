@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Spinner, EmptyState } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
 import { fmtUsd } from "@lib/format";
+import { useAppStore } from "@stores/app-store";
 import { useBlockFlow } from "./block-queries";
 import type { BlockTradeEvent } from "./block-queries";
 import StrategyIcon, { getStrategyLabel } from "./StrategyIcon";
@@ -160,6 +161,7 @@ function BlockTradeRow({ trade, isExpanded, onToggle }: BlockTradeRowProps) {
 
 export default function BlockFlowView() {
   const { data, isLoading, error } = useBlockFlow();
+  const activeVenues = useAppStore((s) => s.activeVenues);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggleTrade(id: string) {
@@ -179,7 +181,7 @@ export default function BlockFlowView() {
     return <EmptyState icon="⚠" title="Failed to load institutional trades" detail="Service may still be starting. Deribit and Bybit connect via WebSocket, OKX and Derive poll every 90s." />;
   }
 
-  const trades = data?.trades ?? [];
+  const trades = (data?.trades ?? []).filter((t) => activeVenues.includes(t.venue));
 
   if (trades.length === 0) {
     return <EmptyState icon="🏛" title="No institutional trades yet" detail="RFQ and block trades will appear here as they execute across Deribit, OKX, Bybit, Binance, and Derive." />;
