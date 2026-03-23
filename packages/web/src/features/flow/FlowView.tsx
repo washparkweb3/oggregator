@@ -1,11 +1,9 @@
 import { useRef, useEffect, useState } from "react";
 
-import { Spinner, EmptyState, VenuePickerButton, DropdownPicker } from "@components/ui";
+import { Spinner, EmptyState, VenuePickerButton, AssetPickerButton } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
 import { useAppStore } from "@stores/app-store";
 import { fmtIv } from "@lib/format";
-import { getTokenLogo } from "@lib/token-meta";
-import { useUnderlyings } from "@features/chain/queries";
 import { useFlow } from "./queries";
 import type { TradeEvent } from "./queries";
 import BlockFlowView from "./BlockFlowView";
@@ -141,15 +139,10 @@ function TradeRow({ trade, isNew }: TradeRowProps) {
 type FlowMode = "all" | "block";
 
 export default function FlowView() {
-  const { data: underlyingsData } = useUnderlyings();
-  const flowAssets = [...new Set(
-    (underlyingsData?.underlyings ?? []).map((u) => u.split('_')[0]!),
-  )];
-
   const [mode, setMode] = useState<FlowMode>("all");
-  const [asset, setAsset] = useState<string>("BTC");
+  const underlying   = useAppStore((s) => s.underlying);
   const activeVenues = useAppStore((s) => s.activeVenues);
-  const { data, isLoading, error } = useFlow(asset);
+  const { data, isLoading, error } = useFlow(underlying);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const prevCountRef = useRef(0);
 
@@ -213,14 +206,7 @@ export default function FlowView() {
                 🏛 Institutions
               </button>
             </div>
-            {mode === "all" && (
-              <DropdownPicker
-                value={asset}
-                onChange={setAsset}
-                icon={(() => { const logo = getTokenLogo(asset); return logo ? <img src={logo} className={styles.flowAssetLogo} alt="" /> : null; })()}
-                options={flowAssets.map((a) => ({ value: a, label: a }))}
-              />
-            )}
+            <AssetPickerButton />
             <VenuePickerButton />
           </div>
           <span className={styles.subtitle}>
@@ -258,7 +244,7 @@ export default function FlowView() {
               <EmptyState
                 icon="◈"
                 title="No trades yet"
-                detail={`${asset} options have low trading activity. Trades will appear here in real-time when they occur.`}
+                detail={`${underlying} options have low trading activity. Trades will appear here in real-time when they occur.`}
               />
             ) : (
               trades.map((t, i) => {

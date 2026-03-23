@@ -73,12 +73,6 @@
   color: var(--text-primary);
 }
 
-.flowAssetLogo {
-  width: 14px;
-  height: 14px;
-  object-fit: contain;
-}
-
 .subtitle {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
