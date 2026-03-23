@@ -3,7 +3,7 @@ import { createChart, LineSeries, LineStyle, type IChartApi, type ISeriesApi, Co
 
 import { useAppStore } from "@stores/app-store";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
-import { Spinner } from "@components/ui";
+import { Spinner, DropdownPicker } from "@components/ui";
 import { formatExpiry, dteDays } from "@lib/format";
 import styles from "./VolSmile.module.css";
 
@@ -75,8 +75,8 @@ export default function VolSmile() {
   const [localExpiry, setLocalExpiry] = useState("");
   const smileExpiry = localExpiry && expiries.includes(localExpiry) ? localExpiry : defaultExpiry;
 
-  const handleExpiryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLocalExpiry(e.target.value);
+  const handleExpiryChange = useCallback((value: string) => {
+    setLocalExpiry(value);
   }, []);
 
   const { data: chain } = useChainQuery(underlying, smileExpiry, ALL_VENUES);
@@ -185,21 +185,16 @@ export default function VolSmile() {
       <div className={styles.header}>
         <span className={styles.title}>Vol Smile</span>
 
-        <div className={styles.expirySelect}>
-          <select
-            className={styles.expiryDropdown}
-            value={smileExpiry}
-            onChange={handleExpiryChange}
-          >
-            {expiries.map((e) => {
-              const d = dteDays(e);
-              return (
-                <option key={e} value={e}>{formatExpiry(e)} ({d}d)</option>
-              );
-            })}
-          </select>
-          <span className={styles.expiryChevron}>▾</span>
-        </div>
+        <DropdownPicker
+          size="sm"
+          value={smileExpiry}
+          onChange={handleExpiryChange}
+          options={expiries.map((e) => ({
+            value: e,
+            label: formatExpiry(e),
+            meta: `${dteDays(e)}d`,
+          }))}
+        />
 
         <div className={styles.modePicker}>
           {(["both", "call", "put"] as const).map((m) => (

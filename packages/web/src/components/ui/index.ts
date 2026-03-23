@@ -1,5 +1,6 @@
 export { default as AssetPickerButton } from "./AssetPickerButton";
 export { default as CommandPalette }    from "./CommandPalette";
+export { default as DropdownPicker }    from "./DropdownPicker";
 export { default as EmptyState }        from "./EmptyState";
 export { default as IvChip }        from "./IvChip";
 export { default as MobileDrawer }  from "./MobileDrawer";

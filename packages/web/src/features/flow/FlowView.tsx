@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 
-import { Spinner, EmptyState, VenuePickerButton } from "@components/ui";
+import { Spinner, EmptyState, VenuePickerButton, DropdownPicker } from "@components/ui";
 import { VENUES } from "@lib/venue-meta";
 import { useAppStore } from "@stores/app-store";
 import { fmtIv } from "@lib/format";
@@ -214,19 +214,12 @@ export default function FlowView() {
               </button>
             </div>
             {mode === "all" && (
-              <div className={styles.assetSelect}>
-                {(() => { const logo = getTokenLogo(asset); return logo ? <img src={logo} className={styles.assetLogo} alt="" /> : null; })()}
-                <select
-                  className={styles.assetDropdown}
-                  value={asset}
-                  onChange={(e) => setAsset(e.target.value)}
-                >
-                  {flowAssets.map((a) => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
-                <span className={styles.assetChevron}>▾</span>
-              </div>
+              <DropdownPicker
+                value={asset}
+                onChange={setAsset}
+                icon={(() => { const logo = getTokenLogo(asset); return logo ? <img src={logo} className={styles.flowAssetLogo} alt="" /> : null; })()}
+                options={flowAssets.map((a) => ({ value: a, label: a }))}
+              />
             )}
             <VenuePickerButton />
           </div>
