@@ -13,11 +13,17 @@
   <img src="https://img.shields.io/badge/venues-5-50D2C1" />
 </p>
 
+<p align="center">
+  <img src="media/oggregator-readme.gif" alt="oggregator demo showing chain overview and builder" width="900" />
+</p>
+
 ---
 
 ## What this is
 
 oggregator connects to Deribit, OKX, Binance, Bybit, and Derive via WebSocket, normalizes option quotes to a canonical format, and serves a real-time cross-venue comparison dashboard. See the best price, IV, spread, and greeks for any strike across all venues simultaneously.
+
+**Live demo:** [oggregator.useheat.xyz](https://oggregator.useheat.xyz)
 
 ## Venues
 
