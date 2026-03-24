@@ -16,6 +16,7 @@ interface QuickTradeProps {
 export default function QuickTrade({ strike, type, direction, side, onClose }: QuickTradeProps) {
   const addLeg = useStrategyStore((s) => s.addLeg);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const activeTab = useAppStore((s) => s.activeTab);
   const expiry = useAppStore((s) => s.expiry);
   const activeVenues = useAppStore((s) => s.activeVenues);
 
@@ -24,31 +25,37 @@ export default function QuickTrade({ strike, type, direction, side, onClose }: Q
     .map(([venueId, q]) => {
       if (!q) return null;
       const price = direction === "buy" ? q.ask : q.bid;
-      return { venueId, price, iv: q.markIv, delta: q.delta, gamma: q.gamma, theta: q.theta, vega: q.vega };
+      const oppositePrice = direction === "buy" ? q.bid : q.ask;
+      const spreadCost = price != null && oppositePrice != null ? Math.abs(price - oppositePrice) / 2 : null;
+      const size = direction === "buy" ? q.askSize : q.bidSize;
+      return {
+        venueId, price, spreadCost, size,
+        iv: q.markIv, delta: q.delta, gamma: q.gamma, theta: q.theta, vega: q.vega,
+        spreadPct: q.spreadPct,
+      };
     })
     .filter(Boolean)
     .filter((v) => v!.price != null && v!.price > 0)
     .sort((a, b) => {
       if (direction === "buy") return (a!.price ?? Infinity) - (b!.price ?? Infinity);
       return (b!.price ?? 0) - (a!.price ?? 0);
-    }) as Array<{ venueId: string; price: number; iv: number | null; delta: number | null; gamma: number | null; theta: number | null; vega: number | null }>;
+    }) as Array<{
+      venueId: string; price: number; spreadCost: number | null; size: number | null;
+      iv: number | null; delta: number | null; gamma: number | null;
+      theta: number | null; vega: number | null; spreadPct: number | null;
+    }>;
 
-  function handleAddToArchitect(venueId: string, price: number, q: typeof venues[0]) {
+  const isOnArchitect = activeTab === "architect";
+
+  function handleAdd(v: typeof venues[0]) {
     addLeg({
-      type,
-      direction,
-      strike,
-      expiry,
-      quantity: 1,
-      entryPrice: price,
-      venue: venueId,
-      delta: q?.delta ?? null,
-      gamma: q?.gamma ?? null,
-      theta: q?.theta ?? null,
-      vega: q?.vega ?? null,
-      iv: q?.iv ?? null,
+      type, direction, strike, expiry, quantity: 1,
+      entryPrice: v.price, venue: v.venueId,
+      delta: v.delta, gamma: v.gamma, theta: v.theta, vega: v.vega, iv: v.iv,
     });
-    setActiveTab("architect");
+    if (!isOnArchitect) {
+      setActiveTab("architect");
+    }
     onClose();
   }
 
@@ -70,25 +77,43 @@ export default function QuickTrade({ strike, type, direction, side, onClose }: Q
           const meta = VENUES[v.venueId];
           const isBest = i === 0;
           return (
-            <div key={v.venueId} className={styles.venueRow} data-best={isBest || undefined}>
-              <div className={styles.venueInfo}>
+            <div key={v.venueId} className={styles.venueCard} data-best={isBest || undefined}>
+              <div className={styles.venueCardHeader}>
                 {meta?.logo && <img src={meta.logo} className={styles.venueLogo} alt="" />}
                 <span className={styles.venueName}>{meta?.label ?? v.venueId}</span>
                 {isBest && <span className={styles.bestTag}>BEST</span>}
+                <span className={styles.venuePrice}>{fmtUsd(v.price)}</span>
               </div>
-              <div className={styles.venuePrice}>{fmtUsd(v.price)}</div>
-              <div className={styles.venueIv}>{v.iv != null ? fmtIv(v.iv) : "–"}</div>
-              <button
-                className={styles.addBtn}
-                onClick={() => handleAddToArchitect(v.venueId, v.price, v)}
-              >
-                + Architect
+
+              <div className={styles.venueDetails}>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>IV</span>
+                  <span className={styles.detailValue}>{v.iv != null ? fmtIv(v.iv) : "–"}</span>
+                  <span className={styles.detailLabel}>Spread</span>
+                  <span className={styles.detailValue}>{v.spreadPct != null ? `${v.spreadPct.toFixed(1)}%` : "–"}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Delta</span>
+                  <span className={styles.detailValue}>{v.delta?.toFixed(3) ?? "–"}</span>
+                  <span className={styles.detailLabel}>Size</span>
+                  <span className={styles.detailValue}>{v.size != null ? v.size.toFixed(1) : "–"}</span>
+                </div>
+                {v.spreadCost != null && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Spread cost</span>
+                    <span className={styles.detailValue}>{fmtUsd(v.spreadCost)}</span>
+                  </div>
+                )}
+              </div>
+
+              <button className={styles.addBtn} onClick={() => handleAdd(v)}>
+                {isOnArchitect ? "+ Add Leg" : "+ Architect"}
               </button>
             </div>
           );
         })}
         {venues.length === 0 && (
-          <div className={styles.empty}>No quotes available</div>
+          <div className={styles.empty}>No quotes available for this option</div>
         )}
       </div>
     </div>

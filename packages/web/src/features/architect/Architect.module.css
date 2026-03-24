@@ -123,6 +123,13 @@
   padding: 5px 8px;
   outline: none;
   transition: border-color var(--transition-fast);
+  -moz-appearance: textfield;
+}
+
+.legInputField::-webkit-inner-spin-button,
+.legInputField::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .legInputField:focus {
@@ -130,6 +137,58 @@
 }
 
 .legInputField::placeholder {
+  color: var(--text-dim);
+}
+
+/* ── Strike autocomplete ─────────────────────────────── */
+
+.strikeInputWrap {
+  position: relative;
+}
+
+.strikeSuggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  padding: 3px;
+  scrollbar-width: thin;
+}
+
+.strikeSuggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.strikeSuggestion:hover {
+  background: var(--bg-hover);
+}
+
+.strikeSuggestion[data-atm] {
+  color: var(--accent-primary);
+}
+
+.strikeSuggestionMeta {
+  font-size: 9px;
   color: var(--text-dim);
 }
 
@@ -273,11 +332,11 @@
   position: relative;
 }
 
-.payoffChartWrap {
+.payoffCanvas {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 /* ── Right sidebar ───────────────────────────────────── */

@@ -134,6 +134,9 @@ export default function ArchitectView() {
                 points={payoffPoints}
                 breakevens={metrics?.breakevens ?? []}
                 spotPrice={spotPrice}
+                legs={legs}
+                maxProfit={metrics?.maxProfit ?? null}
+                maxLoss={metrics?.maxLoss ?? null}
               />
             </>
           )}

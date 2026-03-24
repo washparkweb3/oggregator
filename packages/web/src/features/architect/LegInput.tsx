@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { useAppStore } from "@stores/app-store";
 import { useChainQuery, useExpiries } from "@features/chain/queries";
@@ -20,24 +20,45 @@ export default function LegInput() {
   const [direction, setDirection] = useState<"buy" | "sell">("buy");
   const [strikeInput, setStrikeInput] = useState("");
   const [qty, setQty] = useState("1");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const strikeRef = useRef<HTMLDivElement>(null);
 
-  // Sync expiry when global changes or data loads
   if (!expiry && expiries.length > 0) {
     setExpiry(expiries.length > 1 ? expiries[1]! : expiries[0]!);
   }
 
   const { data: chain } = useChainQuery(underlying, expiry, activeVenues);
   const strikes = chain?.strikes.map((s) => s.strike) ?? [];
+  const atmStrike = chain?.stats.atmStrike ?? 0;
 
-  // Find the closest available strike to what user typed
-  const typedStrike = Number(strikeInput) || 0;
-  const resolvedStrike = strikes.length > 0
-    ? strikes.reduce((best, s) => Math.abs(s - typedStrike) < Math.abs(best - typedStrike) ? s : best)
-    : typedStrike;
+  // Filter strikes by input
+  const filtered = strikeInput
+    ? strikes.filter((s) => s.toString().includes(strikeInput))
+    : strikes;
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (strikeRef.current && !strikeRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function handleSelectStrike(strike: number) {
+    setStrikeInput(strike.toString());
+    setShowSuggestions(false);
+  }
 
   function handleAdd() {
     if (!chain || !expiry) return;
-    const strike = resolvedStrike || strikes[Math.floor(strikes.length / 2)] || 70000;
+    const targetStrike = Number(strikeInput) || atmStrike;
+    const strike = strikes.reduce((best, s) =>
+      Math.abs(s - targetStrike) < Math.abs(best - targetStrike) ? s : best,
+      strikes[0] ?? targetStrike,
+    );
     const s = chain.strikes.find((x) => x.strike === strike);
     const side = type === "call" ? s?.call : s?.put;
     const bestVenue = side?.bestVenue ?? "deribit";
@@ -66,60 +87,51 @@ export default function LegInput() {
     <div className={styles.legInput}>
       <div className={styles.legInputRow}>
         <div className={styles.legInputToggle}>
-          <button
-            className={styles.toggleBtn}
-            data-active={direction === "buy"}
-            data-type="buy"
-            onClick={() => setDirection("buy")}
-          >
-            BUY
-          </button>
-          <button
-            className={styles.toggleBtn}
-            data-active={direction === "sell"}
-            data-type="sell"
-            onClick={() => setDirection("sell")}
-          >
-            SELL
-          </button>
+          <button className={styles.toggleBtn} data-active={direction === "buy"} data-type="buy" onClick={() => setDirection("buy")}>BUY</button>
+          <button className={styles.toggleBtn} data-active={direction === "sell"} data-type="sell" onClick={() => setDirection("sell")}>SELL</button>
         </div>
 
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
           className={styles.legInputField}
           placeholder="Qty"
           value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          min={1}
-          style={{ width: 50 }}
+          onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
+          style={{ width: 42 }}
         />
 
-        <input
-          type="number"
-          className={styles.legInputField}
-          placeholder="Strike"
-          value={strikeInput}
-          onChange={(e) => setStrikeInput(e.target.value)}
-          style={{ width: 90 }}
-        />
+        <div className={styles.strikeInputWrap} ref={strikeRef}>
+          <input
+            type="text"
+            inputMode="numeric"
+            className={styles.legInputField}
+            placeholder={atmStrike ? atmStrike.toLocaleString() : "Strike"}
+            value={strikeInput}
+            onChange={(e) => { setStrikeInput(e.target.value.replace(/\D/g, "")); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            style={{ width: 90 }}
+          />
+          {showSuggestions && filtered.length > 0 && (
+            <div className={styles.strikeSuggestions}>
+              {filtered.slice(0, 20).map((s) => (
+                <button
+                  key={s}
+                  className={styles.strikeSuggestion}
+                  data-atm={s === atmStrike || undefined}
+                  onClick={() => handleSelectStrike(s)}
+                >
+                  {s.toLocaleString()}
+                  {s === atmStrike && <span className={styles.strikeSuggestionMeta}>ATM</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className={styles.legInputToggle}>
-          <button
-            className={styles.toggleBtn}
-            data-active={type === "call"}
-            data-type="call"
-            onClick={() => setType("call")}
-          >
-            CALL
-          </button>
-          <button
-            className={styles.toggleBtn}
-            data-active={type === "put"}
-            data-type="put"
-            onClick={() => setType("put")}
-          >
-            PUT
-          </button>
+          <button className={styles.toggleBtn} data-active={type === "call"} data-type="call" onClick={() => setType("call")}>CALL</button>
+          <button className={styles.toggleBtn} data-active={type === "put"} data-type="put" onClick={() => setType("put")}>PUT</button>
         </div>
 
         <DropdownPicker
