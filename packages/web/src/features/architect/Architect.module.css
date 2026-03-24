@@ -5,14 +5,38 @@
   overflow: hidden;
 }
 
-/* ── Main area (left) ────────────────────────────────── */
+/* ── Main area ────────────────────────────────────────── */
 
 .mainArea {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--space-4);
   overflow-y: auto;
+}
+
+/* When we have legs, switch to split layout */
+.splitBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.controlsCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
 }
 
 .header { flex-shrink: 0; }
@@ -379,13 +403,25 @@
 .metricVal { font-weight: 700; color: var(--text-primary); }
 .metricVal[data-positive="true"] { color: var(--color-profit); }
 .metricVal[data-negative="true"] { color: var(--color-loss); }
-.greeks { color: var(--text-dim); margin-left: auto; font-size: 10px; }
+
+.greeksRow {
+  display: flex;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.greekItem { display: flex; gap: 3px; }
+.greekLabel { color: var(--text-dim); font-weight: 700; }
 
 /* ── Chart panel ─────────────────────────────────────── */
 
 .chartPanel {
-  height: 320px;
-  flex: 0 0 320px;
+  flex: 1;
+  min-height: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -465,7 +501,8 @@
 
   .legInputRow { gap: var(--space-1); }
 
-  .chartPanel { height: 240px; flex: 0 0 240px; }
+  .splitBody { grid-template-columns: 1fr; }
+  .chartPanel { min-height: 250px; }
 
   .templateCard { width: 130px; padding: var(--space-2); }
   .templateCardName { font-size: 10px; }

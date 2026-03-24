@@ -73,85 +73,90 @@ export default function ArchitectView() {
         {/* Leg input */}
         <LegInput />
 
-        {/* Legs list + metrics */}
-        {legs.length > 0 && (
-          <div className={styles.legsSection}>
-            <div className={styles.legsSectionHeader}>
-              <span className={styles.strategyName}>{strategyName}</span>
-              <button className={styles.clearBtn} onClick={clearLegs}>Clear</button>
-            </div>
-
-            <div className={styles.legsList}>
-              {legs.map((leg) => (
-                <LegRow key={leg.id} leg={leg} onRemove={() => removeLeg(leg.id)} />
-              ))}
-            </div>
-
-            {metrics && (
-              <div className={styles.metricsRow}>
-                <span className={styles.metric}>
-                  <span className={styles.metricLabel}>Net</span>
-                  <span className={styles.metricVal} data-positive={metrics.netDebit > 0}>
-                    {metrics.netDebit > 0 ? "+" : ""}{fmtUsd(metrics.netDebit)}
-                  </span>
-                </span>
-                <span className={styles.metric}>
-                  <span className={styles.metricLabel}>Max ↑</span>
-                  <span className={styles.metricVal} data-positive>
-                    {metrics.maxProfit != null ? fmtUsd(metrics.maxProfit) : "∞"}
-                  </span>
-                </span>
-                <span className={styles.metric}>
-                  <span className={styles.metricLabel}>Max ↓</span>
-                  <span className={styles.metricVal} data-negative>
-                    {metrics.maxLoss != null ? fmtUsd(metrics.maxLoss) : "∞"}
-                  </span>
-                </span>
-                {metrics.breakevens.length > 0 && (
-                  <span className={styles.metric}>
-                    <span className={styles.metricLabel}>BE</span>
-                    <span className={styles.metricVal}>
-                      {metrics.breakevens.map((b) => `$${b.toLocaleString()}`).join(", ")}
-                    </span>
-                  </span>
-                )}
-                <span className={styles.greeks}>
-                  Δ {metrics.netDelta?.toFixed(3) ?? "–"}
-                  &nbsp; Γ {metrics.netGamma?.toFixed(5) ?? "–"}
-                  &nbsp; Θ {metrics.netTheta != null ? fmtUsd(metrics.netTheta) : "–"}
-                  &nbsp; V {metrics.netVega != null ? fmtUsd(metrics.netVega) : "–"}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Payoff chart */}
-        <div className={styles.chartPanel}>
-          {legs.length === 0 ? (
+        {legs.length === 0 ? (
+          <div className={styles.chartPanel}>
             <EmptyState
               icon="⚙"
               title="Build a strategy"
               detail="Pick a template above, add custom legs, or click BID/ASK on the Chain tab."
             />
-          ) : (
-            <>
-              <div className={styles.chartTitle}>P&L at Expiry</div>
-              <PayoffChart
-                points={payoffPoints}
-                breakevens={metrics?.breakevens ?? []}
-                spotPrice={spotPrice}
-                legs={legs}
-                maxProfit={metrics?.maxProfit ?? null}
-                maxLoss={metrics?.maxLoss ?? null}
-              />
-            </>
-          )}
-        </div>
-        {legs.length > 0 && (
-          <button className={styles.compareBtn} onClick={() => setShowVenues(true)}>
-            Compare Venues
-          </button>
+          </div>
+        ) : (
+          /* Split layout: controls left, chart right */
+          <div className={styles.splitBody}>
+            <div className={styles.controlsCol}>
+              <div className={styles.legsSection}>
+                <div className={styles.legsSectionHeader}>
+                  <span className={styles.strategyName}>{strategyName}</span>
+                  <button className={styles.clearBtn} onClick={clearLegs}>Clear</button>
+                </div>
+
+                <div className={styles.legsList}>
+                  {legs.map((leg) => (
+                    <LegRow key={leg.id} leg={leg} onRemove={() => removeLeg(leg.id)} />
+                  ))}
+                </div>
+
+                {metrics && (
+                  <div className={styles.metricsRow}>
+                    <span className={styles.metric}>
+                      <span className={styles.metricLabel}>Net</span>
+                      <span className={styles.metricVal} data-positive={metrics.netDebit > 0}>
+                        {metrics.netDebit > 0 ? "+" : ""}{fmtUsd(metrics.netDebit)}
+                      </span>
+                    </span>
+                    <span className={styles.metric}>
+                      <span className={styles.metricLabel}>Max ↑</span>
+                      <span className={styles.metricVal} data-positive>
+                        {metrics.maxProfit != null ? fmtUsd(metrics.maxProfit) : "∞"}
+                      </span>
+                    </span>
+                    <span className={styles.metric}>
+                      <span className={styles.metricLabel}>Max ↓</span>
+                      <span className={styles.metricVal} data-negative>
+                        {metrics.maxLoss != null ? fmtUsd(metrics.maxLoss) : "∞"}
+                      </span>
+                    </span>
+                    {metrics.breakevens.length > 0 && (
+                      <span className={styles.metric}>
+                        <span className={styles.metricLabel}>BE</span>
+                        <span className={styles.metricVal}>
+                          {metrics.breakevens.map((b) => `$${b.toLocaleString()}`).join(", ")}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {metrics && (
+                  <div className={styles.greeksRow}>
+                    <span className={styles.greekItem}><span className={styles.greekLabel}>Δ</span> {metrics.netDelta?.toFixed(3) ?? "–"}</span>
+                    <span className={styles.greekItem}><span className={styles.greekLabel}>Γ</span> {metrics.netGamma?.toFixed(5) ?? "–"}</span>
+                    <span className={styles.greekItem}><span className={styles.greekLabel}>Θ</span> {metrics.netTheta != null ? fmtUsd(metrics.netTheta) : "–"}</span>
+                    <span className={styles.greekItem}><span className={styles.greekLabel}>V</span> {metrics.netVega != null ? fmtUsd(metrics.netVega) : "–"}</span>
+                  </div>
+                )}
+              </div>
+
+              <button className={styles.compareBtn} onClick={() => setShowVenues(true)}>
+                Compare Venues
+              </button>
+            </div>
+
+            <div className={styles.chartCol}>
+              <div className={styles.chartPanel}>
+                <div className={styles.chartTitle}>P&L at Expiry</div>
+                <PayoffChart
+                  points={payoffPoints}
+                  breakevens={metrics?.breakevens ?? []}
+                  spotPrice={spotPrice}
+                  legs={legs}
+                  maxProfit={metrics?.maxProfit ?? null}
+                  maxLoss={metrics?.maxLoss ?? null}
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
