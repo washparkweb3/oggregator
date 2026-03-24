@@ -4,12 +4,12 @@ import type { Leg } from "./payoff";
 let _nextLegId = 1;
 
 interface StrategyState {
-  /** The underlying these legs belong to */
   underlying: string;
   legs: Leg[];
   addLeg: (leg: Omit<Leg, "id">, underlying: string) => void;
   removeLeg: (id: string) => void;
   updateLeg: (id: string, patch: Partial<Leg>) => void;
+  replaceLegs: (legs: Leg[], underlying: string) => void;
   clearLegs: () => void;
 }
 
@@ -19,7 +19,6 @@ export const useStrategyStore = create<StrategyState>((set) => ({
 
   addLeg: (leg, underlying) =>
     set((s) => {
-      // Clear legs if underlying changed
       const prev = s.underlying === underlying ? s.legs : [];
       return {
         underlying,
@@ -36,6 +35,9 @@ export const useStrategyStore = create<StrategyState>((set) => ({
     set((s) => ({
       legs: s.legs.map((l) => (l.id === id ? { ...l, ...patch } : l)),
     })),
+
+  replaceLegs: (legs, underlying) =>
+    set({ legs, underlying }),
 
   clearLegs: () => set({ legs: [] }),
 }));

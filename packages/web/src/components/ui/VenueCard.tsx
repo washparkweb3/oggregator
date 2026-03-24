@@ -16,15 +16,12 @@ export interface VenueCardDetail {
 
 interface VenueCardProps {
   venueId:   string;
-  /** Main price (single-leg price or total strategy cost) */
   total:     number | null;
   totalLabel?: string;
   isBest:    boolean;
   available: boolean;
   details:   VenueCardDetail[];
-  /** If provided, shows a button */
   action?:   { label: string; onClick: () => void };
-  /** Optional savings text */
   savings?:  string;
 }
 
@@ -33,48 +30,69 @@ export default function VenueCard({ venueId, total, totalLabel, isBest, availabl
 
   return (
     <div className={styles.card} data-best={isBest || undefined} data-unavailable={!available || undefined}>
+      {/* Top: venue identity + price */}
       <div className={styles.header}>
-        {meta?.logo && <img src={meta.logo} className={styles.logo} alt="" />}
-        <span className={styles.name}>{meta?.label ?? venueId}</span>
-        {isBest && <span className={styles.bestTag}>BEST</span>}
+        <div className={styles.venueId}>
+          {meta?.logo && <img src={meta.logo} className={styles.logo} alt="" />}
+          <span className={styles.name}>{meta?.label ?? venueId}</span>
+          {isBest && <span className={styles.bestTag}>BEST</span>}
+        </div>
         <span className={styles.total} data-positive={total != null && total > 0}>
           {available && total != null && Number.isFinite(total) ? `${total > 0 ? "+" : ""}${fmtUsd(total)}` : "N/A"}
         </span>
       </div>
 
+      {/* Leg details */}
       {available && details.length > 0 && (
         <div className={styles.details}>
           {details.map((d, i) => (
-            <div key={i} className={styles.row}>
-              <span className={styles.dir} data-direction={d.direction}>
-                {d.direction === "buy" ? "B" : "S"}
-              </span>
-              <span className={styles.strike}>{d.strike.toLocaleString()}</span>
-              <span className={styles.type} data-type={d.type}>
-                {d.type === "call" ? "C" : "P"}
-              </span>
-              <span className={styles.price}>{fmtUsd(d.price)}</span>
-              {d.spreadPct != null && <span className={styles.spread}>{d.spreadPct.toFixed(1)}%</span>}
-              {d.iv != null && <span className={styles.iv}>{fmtIv(d.iv)}</span>}
+            <div key={i} className={styles.legRow}>
+              <div className={styles.legLeft}>
+                <span className={styles.dir} data-direction={d.direction}>
+                  {d.direction === "buy" ? "BUY" : "SELL"}
+                </span>
+                <span className={styles.strike}>{d.strike.toLocaleString()}</span>
+                <span className={styles.type} data-type={d.type}>
+                  {d.type === "call" ? "CALL" : "PUT"}
+                </span>
+              </div>
+              <span className={styles.legPrice}>{fmtUsd(d.price)}</span>
             </div>
           ))}
+
+          {/* Stats grid: IV, spread, size, spread cost — only for single-leg */}
           {details.length === 1 && details[0] && (
-            <>
-              <div className={styles.metaRow}>
-                <span className={styles.metaLabel}>Delta</span>
-                <span className={styles.metaValue}>{details[0].size != null ? `Δ — Size ${details[0].size.toFixed(1)}` : "–"}</span>
-              </div>
-              {details[0].spreadCost != null && (
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Spread cost</span>
-                  <span className={styles.metaValue}>{fmtUsd(details[0].spreadCost)}</span>
+            <div className={styles.statsGrid}>
+              {details[0].iv != null && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>IV</span>
+                  <span className={styles.statVal} data-kind="iv">{fmtIv(details[0].iv)}</span>
                 </div>
               )}
-            </>
+              {details[0].spreadPct != null && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Spread</span>
+                  <span className={styles.statVal}>{details[0].spreadPct.toFixed(1)}%</span>
+                </div>
+              )}
+              {details[0].size != null && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Size</span>
+                  <span className={styles.statVal}>{details[0].size.toFixed(1)}</span>
+                </div>
+              )}
+              {details[0].spreadCost != null && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>Spread Cost</span>
+                  <span className={styles.statVal}>{fmtUsd(details[0].spreadCost)}</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
 
+      {/* Footer: total label + savings */}
       {available && (totalLabel || savings) && (
         <div className={styles.footer}>
           {totalLabel && <span className={styles.footerLabel}>{totalLabel}</span>}
@@ -82,6 +100,7 @@ export default function VenueCard({ venueId, total, totalLabel, isBest, availabl
         </div>
       )}
 
+      {/* Action button — subtle, secondary */}
       {available && action && (
         <button className={styles.actionBtn} onClick={action.onClick}>
           {action.label}

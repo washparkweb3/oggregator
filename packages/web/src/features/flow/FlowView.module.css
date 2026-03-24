@@ -118,6 +118,13 @@
   flex-shrink: 0;
 }
 
+.tableHeader > :nth-child(5),
+.tableHeader > :nth-child(6),
+.tableHeader > :nth-child(7),
+.tableHeader > :nth-child(8) {
+  text-align: right;
+}
+
 /* ── Trade list ──────────────────────────────────────── */
 
 .list {
@@ -282,6 +289,7 @@
 .size {
   text-align: right;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .notional {

@@ -93,7 +93,7 @@ export default function QuickTrade({ strike, type, direction, side, onClose }: Q
               available
               details={[detail]}
               action={{
-                label: isOnArchitect ? "+ Add Leg" : "+ Architect",
+                label: isOnArchitect ? "+ Add Leg" : "+ Builder",
                 onClick: () => handleAdd(v),
               }}
             />

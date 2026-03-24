@@ -1,8 +1,10 @@
+import { useState } from "react";
+
 import type { Leg } from "./payoff";
 import type { EnrichedChainResponse } from "@shared/enriched";
 import type { VenueId } from "@oggregator/protocol";
-import { VenueCard, type VenueCardDetail } from "@components/ui";
-import { fmtUsd } from "@lib/format";
+import { VENUES } from "@lib/venue-meta";
+import { fmtUsd, formatExpiry } from "@lib/format";
 import { computeExecutionCost } from "@features/builder/compute-execution";
 import type { VenueExecution } from "@features/builder/types";
 import { detectStrategy } from "./payoff";
@@ -15,6 +17,22 @@ interface VenueSlideoverProps {
   onClose:      () => void;
 }
 
+interface VenueCost {
+  venue:      string;
+  totalCost:  number;
+  totalFees:  number;
+  totalSpread: number;
+  available:  boolean;
+  legDetails: Array<{
+    strike:    number;
+    type:      "call" | "put";
+    direction: "buy" | "sell";
+    price:     number;
+    iv:        number | null;
+    spreadPct: number | null;
+  }>;
+}
+
 function buildVenueExecution(
   chain: EnrichedChainResponse,
   venueId: string,
@@ -25,8 +43,6 @@ function buildVenueExecution(
   const side = leg.type === "call" ? strike.call : strike.put;
   const q = side.venues[venueId as VenueId];
   if (!q) return null;
-
-  // Get contract metadata from the raw chain if available
   return {
     venue: venueId,
     available: true,
@@ -37,7 +53,7 @@ function buildVenueExecution(
     askSize: q.askSize,
     iv: q.markIv,
     delta: q.delta,
-    contractSize: 1, // Already USD-normalized by core
+    contractSize: 1,
     tickSize: 0.01,
     minQty: 0.01,
     makerFee: q.estimatedFees && q.mid ? q.estimatedFees.maker / q.mid : 0.0003,
@@ -49,21 +65,23 @@ function buildVenueExecution(
 }
 
 export default function VenueSlideover({ legs, chain, activeVenues, onClose }: VenueSlideoverProps) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   if (!chain || legs.length === 0) return null;
 
   const strategyName = detectStrategy(legs);
+  const strategyExpiry = legs[0]?.expiry ?? "";
 
-  const venueCosts = activeVenues.map((venueId) => {
+  const venueCosts: VenueCost[] = activeVenues.map((venueId) => {
     let totalCost = 0;
     let totalFees = 0;
     let totalSpread = 0;
     let allAvailable = true;
-    const details: VenueCardDetail[] = [];
+    const legDetails: VenueCost["legDetails"] = [];
 
     for (const leg of legs) {
       const ve = buildVenueExecution(chain, venueId, leg);
       if (!ve) { allAvailable = false; continue; }
-
       const exec = computeExecutionCost(ve, leg.direction, leg.quantity);
       if (!exec) { allAvailable = false; continue; }
 
@@ -72,61 +90,123 @@ export default function VenueSlideover({ legs, chain, activeVenues, onClose }: V
       totalFees += exec.feeUsd;
       totalSpread += exec.spreadCostUsd;
 
-      const q = (leg.type === "call" ? chain.strikes.find((s) => s.strike === leg.strike)?.call : chain.strikes.find((s) => s.strike === leg.strike)?.put)?.venues[venueId as VenueId];
+      const q = (leg.type === "call"
+        ? chain.strikes.find((s) => s.strike === leg.strike)?.call
+        : chain.strikes.find((s) => s.strike === leg.strike)?.put
+      )?.venues[venueId as VenueId];
 
-      details.push({
-        label: `${leg.strike}`,
+      legDetails.push({
         strike: leg.strike,
         type: leg.type,
         direction: leg.direction,
         price: exec.entryPrice,
-        spreadPct: q?.spreadPct ?? null,
         iv: q?.markIv ?? null,
-        size: exec.sizeAvailable,
-        spreadCost: exec.spreadCostUsd > 0 ? exec.spreadCostUsd : null,
+        spreadPct: q?.spreadPct ?? null,
       });
     }
 
-    return { venue: venueId, totalCost, totalFees, totalSpread, available: allAvailable, details };
+    return { venue: venueId, totalCost, totalFees, totalSpread, available: allAvailable, legDetails };
   });
 
-  const validCosts = venueCosts.filter((v) => v.available);
-  const bestVenue = validCosts.length > 0
-    ? validCosts.reduce((best, v) => v.totalCost > best.totalCost ? v : best)
-    : null;
+  const sorted = [...venueCosts].sort((a, b) => {
+    if (a.available !== b.available) return a.available ? -1 : 1;
+    return b.totalCost - a.totalCost;
+  });
+
+  const bestCost = sorted[0]?.available ? sorted[0].totalCost : null;
+  const worstCost = sorted.filter((v) => v.available).at(-1)?.totalCost ?? null;
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <div className={styles.titleRow}>
-          <span className={styles.strategyName}>{strategyName}</span>
-          <span className={styles.legCount}>{legs.length} leg{legs.length !== 1 ? "s" : ""}</span>
+        <div className={styles.headerLeft}>
+          <span className={styles.headerTitle}>Venue Comparison</span>
+          <span className={styles.headerMeta}>
+            {strategyName} · {legs.length} leg{legs.length !== 1 ? "s" : ""}
+            {strategyExpiry ? ` · ${formatExpiry(strategyExpiry)}` : ""}
+          </span>
         </div>
         <button className={styles.closeBtn} onClick={onClose}>✕</button>
       </div>
 
-      <div className={styles.venueList}>
-        {venueCosts.map((vc) => {
-          const isBest = bestVenue?.venue === vc.venue;
-          const worstCost = validCosts.length > 1 ? validCosts[validCosts.length - 1]!.totalCost : vc.totalCost;
-          const savingsText = isBest && validCosts.length > 1
-            ? `saves ${fmtUsd(Math.abs(vc.totalCost - worstCost))}`
-            : undefined;
+      {bestCost != null && worstCost != null && bestCost !== worstCost && (
+        <div className={styles.banner}>
+          <span className={styles.bannerLabel}>Best execution saves</span>
+          <span className={styles.bannerValue}>{fmtUsd(Math.abs(bestCost - worstCost))}</span>
+          <span className={styles.bannerLabel}>vs worst</span>
+        </div>
+      )}
+
+      <div className={styles.list}>
+        {sorted.map((vc, i) => {
+          const meta = VENUES[vc.venue];
+          const isExpanded = expanded === vc.venue;
+          const isBest = i === 0 && vc.available;
+          const savings = isBest && worstCost != null && bestCost != null && bestCost !== worstCost
+            ? Math.abs(vc.totalCost - worstCost)
+            : null;
 
           return (
-            <VenueCard
-              key={vc.venue}
-              venueId={vc.venue}
-              total={vc.available ? vc.totalCost : null}
-              totalLabel={vc.available
-                ? `${vc.totalCost > 0 ? "credit" : "debit"} · fee ${fmtUsd(vc.totalFees)} · spread ${fmtUsd(vc.totalSpread)}`
-                : undefined
-              }
-              isBest={isBest}
-              available={vc.available}
-              details={vc.details}
-              savings={savingsText}
-            />
+            <div key={vc.venue} className={styles.venueRow} data-best={isBest || undefined} data-unavailable={!vc.available || undefined}>
+              <div className={styles.rank} data-best={isBest || undefined}>
+                {vc.available ? `#${i + 1}` : "–"}
+              </div>
+
+              <button className={styles.venueMain} onClick={() => setExpanded(isExpanded ? null : vc.venue)}>
+                <div className={styles.venueId}>
+                  {meta?.logo && <img src={meta.logo} alt="" className={styles.venueLogo} />}
+                  <span className={styles.venueName}>{meta?.label ?? vc.venue}</span>
+                </div>
+
+                <div className={styles.venueNumbers}>
+                  {vc.available ? (
+                    <>
+                      <span className={styles.venueTotal} data-positive={vc.totalCost > 0 || undefined}>
+                        {vc.totalCost > 0 ? "+" : ""}{fmtUsd(vc.totalCost)}
+                      </span>
+                      <span className={styles.venueSub}>
+                        fee {fmtUsd(vc.totalFees)} · spread {fmtUsd(vc.totalSpread)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={styles.venueUnavail}>Not available</span>
+                  )}
+                </div>
+
+                {savings != null && (
+                  <span className={styles.savingsBadge}>−{fmtUsd(savings)}</span>
+                )}
+
+                <span className={styles.chevron} data-open={isExpanded || undefined}>▾</span>
+              </button>
+
+              {isExpanded && vc.available && (
+                <div className={styles.legDetails}>
+                  <div className={styles.legDetailHeader}>
+                    <span>Leg</span>
+                    <span>Price</span>
+                    <span>IV</span>
+                    <span>Spread</span>
+                  </div>
+                  {vc.legDetails.map((d, j) => (
+                    <div key={j} className={styles.legDetailRow}>
+                      <span className={styles.legDetailLeg}>
+                        <span data-direction={d.direction}>{d.direction === "buy" ? "B" : "S"}</span>
+                        {" "}{d.strike.toLocaleString()}{" "}
+                        <span data-type={d.type}>{d.type === "call" ? "C" : "P"}</span>
+                      </span>
+                      <span className={styles.legDetailPrice}>{fmtUsd(d.price)}</span>
+                      <span className={styles.legDetailIv}>
+                        {d.iv != null ? `${(d.iv * 100).toFixed(1)}%` : "–"}
+                      </span>
+                      <span className={styles.legDetailSpread}>
+                        {d.spreadPct != null ? `${d.spreadPct.toFixed(1)}%` : "–"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

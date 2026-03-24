@@ -10,7 +10,7 @@ interface Tab {
 
 const MOBILE_TABS: Tab[] = [
   { id: "chain",     label: "Chain",     icon: "⟐" },
-  { id: "architect", label: "Architect", icon: "⚙" },
+  { id: "architect", label: "Builder", icon: "⚙" },
   { id: "surface",   label: "Surface",   icon: "◈" },
   { id: "flow",      label: "Flow",      icon: "⚡", badge: "LIVE" },
   { id: "analytics", label: "Analytics", icon: "◎" },

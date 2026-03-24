@@ -6,10 +6,11 @@ import { useChainQuery, useExpiries } from "@features/chain/queries";
 import { fmtUsd, formatExpiry, dteDays } from "@lib/format";
 import { useStrategyStore } from "./strategy-store";
 import { computePayoff, computeMetrics, computeScenarioPayoff, detectStrategy, type Leg } from "./payoff";
+import { repriceLeg } from "./reprice";
 import { buildShareUrl, decodeStrategy } from "./share";
 import PayoffChart from "./PayoffChart";
 import VenueSlideover from "./VenueSlideover";
-import StrategyTemplates, { TEMPLATES } from "./StrategyTemplates";
+import StrategyTemplates, { findTemplateVariant } from "./StrategyTemplates";
 import LegInput from "./LegInput";
 import styles from "./Architect.module.css";
 
@@ -18,12 +19,11 @@ import styles from "./Architect.module.css";
 interface LegRowProps {
   leg: Leg;
   allStrikes: number[];
-  allExpiries: string[];
   onRemove: () => void;
   onUpdate: (id: string, patch: Partial<Leg>) => void;
 }
 
-function LegRow({ leg, allStrikes, allExpiries, onRemove, onUpdate }: LegRowProps) {
+function LegRow({ leg, allStrikes, onRemove, onUpdate }: LegRowProps) {
   const [editing, setEditing] = useState(false);
 
   function stepStrike(delta: number) {
@@ -32,13 +32,6 @@ function LegRow({ leg, allStrikes, allExpiries, onRemove, onUpdate }: LegRowProp
     if (idx < 0) return;
     const next = sorted[idx + delta];
     if (next != null) onUpdate(leg.id, { strike: next });
-  }
-
-  function stepExpiry(delta: number) {
-    const idx = allExpiries.indexOf(leg.expiry);
-    if (idx < 0) return;
-    const next = allExpiries[idx + delta];
-    if (next != null) onUpdate(leg.id, { expiry: next });
   }
 
   function toggleDirection() {
@@ -60,9 +53,7 @@ function LegRow({ leg, allStrikes, allExpiries, onRemove, onUpdate }: LegRowProp
         </div>
         <div className={styles.legEditRow}>
           <span className={styles.legEditLabel}>Expiry</span>
-          <button className={styles.legStepBtn} onClick={() => stepExpiry(-1)}>−</button>
           <span className={styles.legStepVal}>{formatExpiry(leg.expiry)}</span>
-          <button className={styles.legStepBtn} onClick={() => stepExpiry(1)}>+</button>
         </div>
         <div className={styles.legEditRow}>
           <span className={styles.legEditLabel}>Side</span>
@@ -114,11 +105,12 @@ export default function ArchitectView() {
   })();
   const { data: chain } = useChainQuery(underlying, defaultExpiry, activeVenues, { refetchInterval: 10_000 });
 
-  const legs      = useStrategyStore((s) => s.legs);
-  const clearLegs = useStrategyStore((s) => s.clearLegs);
-  const removeLeg = useStrategyStore((s) => s.removeLeg);
-  const updateLeg = useStrategyStore((s) => s.updateLeg);
-  const addLeg    = useStrategyStore((s) => s.addLeg);
+  const legs        = useStrategyStore((s) => s.legs);
+  const clearLegs   = useStrategyStore((s) => s.clearLegs);
+  const removeLeg   = useStrategyStore((s) => s.removeLeg);
+  const updateLeg   = useStrategyStore((s) => s.updateLeg);
+  const replaceLegs = useStrategyStore((s) => s.replaceLegs);
+  const addLeg      = useStrategyStore((s) => s.addLeg);
   const strategyUnderlying = useStrategyStore((s) => s.underlying);
 
   if (strategyUnderlying && strategyUnderlying !== underlying && legs.length > 0) {
@@ -131,16 +123,17 @@ export default function ArchitectView() {
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Restore strategy from URL on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const encoded = params.get("strategy");
     if (!encoded) return;
+
     const decoded = decodeStrategy(encoded);
     if (!decoded) return;
+
     clearLegs();
     for (const leg of decoded.legs) addLeg(leg, decoded.underlying);
-    // Clean the URL
+
     params.delete("strategy");
     const clean = params.toString();
     window.history.replaceState({}, "", clean ? `?${clean}` : window.location.pathname);
@@ -149,44 +142,67 @@ export default function ArchitectView() {
   const spotPrice = chain?.stats.spotIndexUsd ?? chain?.stats.forwardPriceUsd ?? 0;
   const availableStrikes = useMemo(() => chain?.strikes.map((s) => s.strike) ?? [], [chain]);
 
-  const handleLegStrikeDrag = useCallback((legId: string, newStrike: number) => {
-    if (!chain) return;
-    const leg = legs.find((l) => l.id === legId);
+  const repriceStrategyLeg = useCallback((leg: Leg, patch: Partial<Leg> = {}, exactStrike = false) => {
+    if (!chain) return null;
+
+    return repriceLeg(chain, activeVenues, {
+      type: patch.type ?? leg.type,
+      direction: patch.direction ?? leg.direction,
+      strike: patch.strike ?? leg.strike,
+      expiry: defaultExpiry,
+      quantity: patch.quantity ?? leg.quantity,
+    }, { exactStrike });
+  }, [chain, activeVenues, defaultExpiry]);
+
+  const handleLegUpdate = useCallback((legId: string, patch: Partial<Leg>) => {
+    const leg = legs.find((entry) => entry.id === legId);
     if (!leg) return;
-    const s = chain.strikes.find((x) => x.strike === newStrike);
-    const side = leg.type === "call" ? s?.call : s?.put;
-    let bestPrice: number | null = null;
-    let bestVenueId = leg.venue;
-    let bestQ: { delta: number | null; gamma: number | null; theta: number | null; vega: number | null; markIv: number | null } | null = null;
-    if (side) {
-      for (const [vid, vq] of Object.entries(side.venues)) {
-        if (!vq || !activeVenues.includes(vid)) continue;
-        const p = leg.direction === "buy" ? vq.ask : vq.bid;
-        if (p == null || p <= 0) continue;
-        if (bestPrice == null || (leg.direction === "buy" && p < bestPrice) || (leg.direction === "sell" && p > bestPrice)) {
-          bestPrice = p; bestVenueId = vid; bestQ = vq;
-        }
-      }
-    }
-    if (bestPrice == null) return;
-    updateLeg(legId, {
-      strike: newStrike, entryPrice: bestPrice, venue: bestVenueId,
-      delta: bestQ?.delta ?? null, gamma: bestQ?.gamma ?? null,
-      theta: bestQ?.theta ?? null, vega: bestQ?.vega ?? null, iv: bestQ?.markIv ?? null,
+
+    const repriced = repriceStrategyLeg(leg, patch, patch.strike != null);
+    if (!repriced) return;
+
+    updateLeg(legId, repriced);
+  }, [legs, repriceStrategyLeg, updateLeg]);
+
+  const handleLegStrikeDrag = useCallback((legId: string, newStrike: number) => {
+    handleLegUpdate(legId, { strike: newStrike });
+  }, [handleLegUpdate]);
+
+  useEffect(() => {
+    if (!chain || legs.length === 0) return;
+
+    const nextLegs = legs.map((leg) => {
+      const repriced = repriceStrategyLeg(leg);
+      return repriced ? { ...leg, ...repriced } : leg;
     });
-  }, [chain, legs, activeVenues, updateLeg]);
+
+    const changed = nextLegs.some((leg, index) => {
+      const prev = legs[index];
+      return prev != null && (
+        leg.expiry !== prev.expiry
+        || leg.strike !== prev.strike
+        || leg.entryPrice !== prev.entryPrice
+        || leg.venue !== prev.venue
+        || leg.delta !== prev.delta
+        || leg.gamma !== prev.gamma
+        || leg.theta !== prev.theta
+        || leg.vega !== prev.vega
+        || leg.iv !== prev.iv
+      );
+    });
+
+    if (changed) replaceLegs(nextLegs, underlying);
+  }, [chain, legs, replaceLegs, repriceStrategyLeg, underlying]);
 
   const payoffPoints = useMemo(() => computePayoff(legs, spotPrice), [legs, spotPrice]);
   const metrics = useMemo(() => legs.length > 0 ? computeMetrics(legs, spotPrice) : null, [legs, spotPrice]);
   const strategyName = useMemo(() => detectStrategy(legs), [legs]);
 
-  // Compute base DTE from first leg's expiry
   const baseDte = useMemo(() => {
     if (legs.length === 0) return 30;
     return dteDays(legs[0]!.expiry);
   }, [legs]);
 
-  // Scenario overlay curves
   const scenarioIvPoints = useMemo(() => {
     if (legs.length === 0 || ivShift === 0) return undefined;
     return computeScenarioPayoff(legs, spotPrice, ivShift / 100, 0, baseDte);
@@ -210,11 +226,13 @@ export default function ArchitectView() {
     e.preventDefault();
     setDragOver(false);
     if (!chain) return;
-    const templateName = e.dataTransfer.getData("text/plain");
-    const template = TEMPLATES.find((t) => t.name === templateName);
-    if (!template) return;
-    const newLegs = template.build(chain, defaultExpiry);
-    if (newLegs.length === 0) return;
+
+    const dragged = findTemplateVariant(e.dataTransfer.getData("text/plain"));
+    if (!dragged) return;
+
+    const newLegs = dragged.variant.build(chain, defaultExpiry);
+    if (newLegs.length < dragged.template.legs) return;
+
     clearLegs();
     for (const leg of newLegs) addLeg(leg, underlying);
   }
@@ -222,21 +240,17 @@ export default function ArchitectView() {
   return (
     <div className={styles.view}>
       <div className={styles.mainArea}>
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.titleRow}>
-            <span className={styles.title}>Architect</span>
+            <span className={styles.title}>Builder</span>
             <AssetPickerButton />
             <VenuePickerButton />
           </div>
         </div>
 
-        {/* Template strip */}
         <StrategyTemplates chain={chain ?? null} expiry={defaultExpiry} underlying={underlying} />
 
-        {/* 3-column layout */}
         <div className={styles.splitBody}>
-          {/* ── Left: Legs ───────────────────────────── */}
           <div className={styles.controlsCol}>
             <LegInput />
 
@@ -253,9 +267,8 @@ export default function ArchitectView() {
                       key={leg.id}
                       leg={leg}
                       allStrikes={availableStrikes}
-                      allExpiries={allExpiries}
                       onRemove={() => removeLeg(leg.id)}
-                      onUpdate={updateLeg}
+                      onUpdate={handleLegUpdate}
                     />
                   ))}
                 </div>
@@ -275,7 +288,6 @@ export default function ArchitectView() {
             )}
           </div>
 
-          {/* ── Center: Chart ────────────────────────── */}
           <div className={styles.chartCol}>
             <div
               className={`${styles.chartPanel} ${dragOver ? styles.chartPanelDragOver : ""}`}
@@ -286,16 +298,13 @@ export default function ArchitectView() {
               {legs.length === 0 ? (
                 <div className={styles.chartEmpty}>
                   <svg className={styles.ghostChart} viewBox="0 0 200 100" preserveAspectRatio="none">
-                    {/* Ghost grid lines */}
                     {[20, 40, 60, 80].map((y) => (
                       <line key={`h${y}`} x1="0" y1={y} x2="200" y2={y} stroke="var(--border-subtle)" strokeWidth="0.5" opacity="0.4" />
                     ))}
                     {[40, 80, 120, 160].map((x) => (
                       <line key={`v${x}`} x1={x} y1="0" x2={x} y2="100" stroke="var(--border-subtle)" strokeWidth="0.5" opacity="0.4" />
                     ))}
-                    {/* Zero line */}
                     <line x1="0" y1="50" x2="200" y2="50" stroke="var(--text-dim)" strokeWidth="0.8" strokeDasharray="4 3" opacity="0.3" />
-                    {/* Ghost payoff curve */}
                     <path
                       d="M 0 65 L 60 65 L 100 50 L 140 35 L 200 35"
                       fill="none"
@@ -305,7 +314,6 @@ export default function ArchitectView() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
-                    {/* Ghost fill */}
                     <path d="M 0 65 L 60 65 L 100 50 L 100 50 L 60 50 L 0 50 Z" fill="var(--color-loss)" opacity="0.03" />
                     <path d="M 100 50 L 140 35 L 200 35 L 200 50 L 100 50 Z" fill="var(--color-profit)" opacity="0.03" />
                   </svg>
@@ -356,9 +364,7 @@ export default function ArchitectView() {
             </div>
           </div>
 
-          {/* ── Right: Metrics + Scenarios + Share ──── */}
           <div className={styles.rightCol}>
-            {/* Metrics */}
             <div className={styles.rightSection}>
               <span className={styles.rightSectionTitle}>Metrics</span>
               <div className={styles.metricsGrid}>
@@ -391,7 +397,6 @@ export default function ArchitectView() {
               </div>
             </div>
 
-            {/* Greeks */}
             <div className={styles.rightSection}>
               <span className={styles.rightSectionTitle}>Greeks</span>
               <div className={styles.greeksGrid}>
@@ -414,7 +419,6 @@ export default function ArchitectView() {
               </div>
             </div>
 
-            {/* Scenario sliders */}
             <div className={styles.rightSection}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span className={styles.rightSectionTitle}>Scenarios</span>
@@ -460,7 +464,6 @@ export default function ArchitectView() {
               </div>
             </div>
 
-            {/* Share */}
             <div className={styles.rightSection}>
               <span className={styles.rightSectionTitle}>Share</span>
               <div className={styles.shareBar}>

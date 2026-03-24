@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { useAppStore } from "@stores/app-store";
 import { AssetPickerButton, Spinner, EmptyState, VenuePickerButton } from "@components/ui";
@@ -40,6 +40,17 @@ export default function GexView() {
   const maxMagnitude = Math.max(...gex.map((g) => Math.abs(g.gexUsdMillions)), 1);
   const sorted = [...gex].sort((a, b) => b.strike - a.strike);
   const nonzero = gex.filter((g) => Math.abs(g.gexUsdMillions) > 0.001);
+  const barsRef = useRef<HTMLDivElement | null>(null);
+  const spotRowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!barsRef.current || !spotRowRef.current) return;
+
+    const list = barsRef.current;
+    const row = spotRowRef.current;
+    const offset = row.offsetTop - list.offsetTop - list.clientHeight / 2 + row.clientHeight / 2;
+    list.scrollTop = Math.max(0, offset);
+  }, [expiry, nonzero.length, spotPrice]);
 
   return (
     <div className={styles.view}>
@@ -123,14 +134,19 @@ export default function GexView() {
               </div>
             </div>
 
-            <div className={styles.bars}>
+            <div className={styles.bars} ref={barsRef}>
               {sorted.map((g) => {
                 const pct      = (Math.abs(g.gexUsdMillions) / maxMagnitude) * 100;
                 const positive = g.gexUsdMillions >= 0;
                 const isNearSpot = spotPrice != null && Math.abs(g.strike - spotPrice) / spotPrice < 0.005;
 
                 return (
-                  <div key={g.strike} className={styles.barRow} data-near-spot={isNearSpot}>
+                  <div
+                    key={g.strike}
+                    className={styles.barRow}
+                    data-near-spot={isNearSpot || undefined}
+                    ref={isNearSpot ? spotRowRef : undefined}
+                  >
                     <div className={styles.strikeLabel} data-near-spot={isNearSpot}>
                       {g.strike.toLocaleString()}
                       {isNearSpot && <span className={styles.spotMarker}>◄ SPOT</span>}

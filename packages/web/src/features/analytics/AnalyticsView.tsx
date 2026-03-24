@@ -270,8 +270,8 @@ export default function AnalyticsView() {
       </div>
 
       <div className={styles.grid}>
-        <OiSummary chains={chains} />
         <VenueVolumeChart data={venueVolume} />
+        <OiSummary chains={chains} />
         <VolCurves chains={chains} spotPrice={spotPrice} />
         <DeltaCurves chains={chains} spotPrice={spotPrice} />
         <PcrChart data={expiryPcr} />

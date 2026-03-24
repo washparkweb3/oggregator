@@ -122,15 +122,13 @@
 
 .templateCard {
   flex-shrink: 0;
-  width: 160px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--space-3);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  cursor: pointer;
   text-align: left;
   transition: all var(--transition-fast);
 }
@@ -140,22 +138,72 @@
   background: var(--bg-hover);
 }
 
-.templateCard[data-sentiment="bullish"]:hover { border-color: color-mix(in srgb, var(--color-profit) 50%, var(--border-default)); }
-.templateCard[data-sentiment="bearish"]:hover { border-color: color-mix(in srgb, var(--color-loss) 50%, var(--border-default)); }
-.templateCard[data-sentiment="volatile"]:hover { border-color: color-mix(in srgb, var(--color-iv) 50%, var(--border-default)); }
-.templateCard[data-sentiment="neutral"]:hover { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 50%, var(--border-default)); }
+.templateCard[data-sentiment="bullish"]:hover { border-color: color-mix(in srgb, var(--color-profit) 40%, var(--border-default)); }
+.templateCard[data-sentiment="bearish"]:hover { border-color: color-mix(in srgb, var(--color-loss) 40%, var(--border-default)); }
+.templateCard[data-sentiment="volatile"]:hover { border-color: color-mix(in srgb, var(--color-iv) 40%, var(--border-default)); }
+.templateCard[data-sentiment="neutral"]:hover { border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, var(--border-default)); }
+
+.templateCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
 
 .templateCardName {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.templateCardHelper {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.templateCardMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.templateVariantSwitch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: calc(var(--radius-md) - 2px);
+}
+
+.templateVariantBtn {
+  min-width: 52px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.templateVariantBtn:hover {
   color: var(--text-primary);
 }
 
-.templateCardDesc {
-  font-size: 10px;
-  color: var(--text-dim);
-  line-height: 1.4;
+.templateVariantBtn[data-active="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .templateError {
@@ -905,8 +953,8 @@
   .rightCol { order: -1; }
   .chartPanel { min-height: 300px; }
 
-  .templateCard { width: 130px; padding: var(--space-2); }
-  .templateCardName { font-size: 10px; }
+  .templateCard { padding: var(--space-1) var(--space-2); }
+  .templateCardName { font-size: 11px; }
 
   .sentimentBar { height: 28px; }
   .sentimentBtn { padding: 0 8px; font-size: 10px; }

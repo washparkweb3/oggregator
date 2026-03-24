@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { createChart, LineSeries, type IChartApi, ColorType } from "lightweight-charts";
 
 import type { EnrichedChainResponse } from "@shared/enriched";
@@ -20,17 +20,17 @@ function extractDeltas(chain: EnrichedChainResponse, spotPrice: number | null): 
   const points: DeltaPoint[] = [];
   const band = spotPrice ? spotPrice * 0.4 : Infinity;
 
-  for (const s of chain.strikes) {
-    if (spotPrice && Math.abs(s.strike - spotPrice) > band) continue;
+  for (const strike of chain.strikes) {
+    if (spotPrice && Math.abs(strike.strike - spotPrice) > band) continue;
 
     const deltas: number[] = [];
-    for (const q of Object.values(s.call.venues)) {
-      if (q?.delta != null) deltas.push(q.delta);
+    for (const quote of Object.values(strike.call.venues)) {
+      if (quote?.delta != null) deltas.push(quote.delta);
     }
     if (deltas.length === 0) continue;
 
     const avg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-    points.push({ strike: s.strike, delta: avg * 100 });
+    points.push({ strike: strike.strike, delta: avg * 100 });
   }
 
   return points.sort((a, b) => a.strike - b.strike);
@@ -44,19 +44,25 @@ interface DeltaCurvesProps {
 export default function DeltaCurves({ chains, spotPrice }: DeltaCurvesProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartApi = useRef<IChartApi | null>(null);
+  const [hiddenExpiries, setHiddenExpiries] = useState<Set<string>>(new Set());
 
-  const curves = useMemo(() =>
-    chains
-      .filter((c) => c.strikes.length > 5)
-      .map((c, i) => ({
-        expiry: c.expiry,
-        label: formatExpiry(c.expiry),
-        dte: c.dte,
+  const curves = useMemo(
+    () => chains
+      .filter((chain) => chain.strikes.length > 5)
+      .map((chain, i) => ({
+        expiry: chain.expiry,
+        label: formatExpiry(chain.expiry),
+        dte: chain.dte,
         color: COLORS[i % COLORS.length]!,
-        points: extractDeltas(c, spotPrice),
+        points: extractDeltas(chain, spotPrice),
       }))
-      .filter((c) => c.points.length > 3),
+      .filter((curve) => curve.points.length > 3),
     [chains, spotPrice],
+  );
+
+  const visibleCurves = useMemo(
+    () => curves.filter((curve) => !hiddenExpiries.has(curve.expiry)),
+    [curves, hiddenExpiries],
   );
 
   useEffect(() => {
@@ -85,7 +91,7 @@ export default function DeltaCurves({ chains, spotPrice }: DeltaCurvesProps) {
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     });
 
-    for (const curve of curves) {
+    for (const curve of visibleCurves) {
       const series = chart.addSeries(LineSeries, {
         color: curve.color,
         lineWidth: 2,
@@ -94,16 +100,17 @@ export default function DeltaCurves({ chains, spotPrice }: DeltaCurvesProps) {
         lastValueVisible: false,
         priceLineVisible: false,
       });
-      series.setData(
-        curve.points.map((p) => ({ time: p.strike as unknown as number, value: p.delta })) as never,
-      );
+      series.setData(curve.points.map((point) => ({ time: point.strike as unknown as number, value: point.delta })) as never);
     }
 
     chart.timeScale().fitContent();
     chartApi.current = chart;
 
-    return () => { chart.remove(); chartApi.current = null; };
-  }, [curves]);
+    return () => {
+      chart.remove();
+      chartApi.current = null;
+    };
+  }, [visibleCurves]);
 
   if (curves.length === 0) return null;
 
@@ -112,12 +119,28 @@ export default function DeltaCurves({ chains, spotPrice }: DeltaCurvesProps) {
       <div className={styles.cardTitle}>Probability of Expiring Above Strike</div>
       <div className={styles.cardSubtitle}>Call delta (≈ ITM probability) per strike, all expiries</div>
       <div className={styles.curveLegend}>
-        {curves.map((c) => (
-          <span key={c.expiry} className={styles.curveLegendItem}>
-            <span className={styles.curveLegendDot} style={{ background: c.color }} />
-            {c.label}
-          </span>
-        ))}
+        {curves.map((curve) => {
+          const active = !hiddenExpiries.has(curve.expiry);
+          return (
+            <button
+              key={curve.expiry}
+              type="button"
+              className={styles.curveLegendItem}
+              data-active={active || undefined}
+              onClick={() => {
+                setHiddenExpiries((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(curve.expiry)) next.delete(curve.expiry);
+                  else next.add(curve.expiry);
+                  return next;
+                });
+              }}
+            >
+              <span className={styles.curveLegendDot} style={{ background: curve.color }} />
+              {curve.label}
+            </button>
+          );
+        })}
       </div>
       <div className={styles.curveChartArea}>
         <div className={styles.curveChartWrap} ref={chartRef} />

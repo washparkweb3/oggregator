@@ -1,16 +1,18 @@
+/* ── Slide-over panel ──────────────────────────────────── */
+
 .panel {
   position: fixed;
   right: 0;
   top: 0;
   bottom: 0;
-  width: min(380px, 85vw);
-  background: var(--bg-surface);
+  width: min(400px, 88vw);
+  background: var(--bg-base);
   border-left: 1px solid var(--border-default);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.4);
+  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.5);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.2s ease-out;
+  animation: slideIn 0.18s ease-out;
 }
 
 @keyframes slideIn {
@@ -18,47 +20,51 @@
   to   { transform: translateX(0); }
 }
 
+/* ── Header ───────────────────────────────────────────── */
+
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4) var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
-.titleRow {
+.headerLeft {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: 2px;
 }
 
-.strategyName {
+.headerTitle {
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 700;
-  color: var(--accent-primary);
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
 }
 
-.legCount {
+.headerMeta {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-dim);
 }
 
 .closeBtn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .closeBtn:hover {
@@ -66,11 +72,248 @@
   color: var(--text-primary);
 }
 
-.venueList {
+/* ── Best execution banner ────────────────────────────── */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: color-mix(in srgb, var(--color-profit) 6%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-profit) 15%, transparent);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.bannerLabel {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.bannerValue {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-profit);
+}
+
+/* ── Venue list ───────────────────────────────────────── */
+
+.list {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-3);
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
+  gap: 1px;
+}
+
+/* ── Venue row ────────────────────────────────────────── */
+
+.venueRow {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.venueRow[data-best] {
+  background: color-mix(in srgb, var(--accent-primary) 4%, var(--bg-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.venueRow[data-unavailable] {
+  opacity: 0.4;
+}
+
+/* Rank badge */
+.rank {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  width: 22px;
+  text-align: center;
+}
+
+.rank[data-best] {
+  color: var(--accent-primary);
+}
+
+/* Main clickable row */
+.venueMain {
+  position: relative;
+  display: flex;
+  align-items: center;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.venueMain:hover {
+  background: var(--bg-hover);
+}
+
+/* Venue identity */
+.venueId {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 90px;
+}
+
+.venueLogo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+.venueName {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Numbers */
+.venueNumbers {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.venueTotal {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.venueTotal[data-positive] {
+  color: var(--color-profit);
+}
+
+.venueSub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.venueUnavail {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+/* Savings badge */
+.savingsBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-profit);
+  background: color-mix(in srgb, var(--color-profit) 10%, transparent);
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Chevron */
+.chevron {
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: var(--space-1);
+}
+
+.chevron[data-open] {
+  transform: rotate(180deg);
+}
+
+/* ── Expandable leg details ───────────────────────────── */
+
+.legDetails {
+  padding: 0 var(--space-3) var(--space-3) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: fadeIn 0.12s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.legDetailHeader {
+  display: grid;
+  grid-template-columns: 1fr 64px 48px 48px;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.legDetailHeader span:not(:first-child) {
+  text-align: right;
+}
+
+.legDetailRow {
+  display: grid;
+  grid-template-columns: 1fr 64px 48px 48px;
+  gap: var(--space-2);
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.legDetailRow:last-child {
+  border-bottom: none;
+}
+
+.legDetailLeg {
+  color: var(--text-secondary);
+}
+
+.legDetailLeg [data-direction="buy"]  { color: var(--color-profit); font-weight: 700; }
+.legDetailLeg [data-direction="sell"] { color: var(--color-loss); font-weight: 700; }
+.legDetailLeg [data-type="call"]      { color: var(--color-profit); }
+.legDetailLeg [data-type="put"]       { color: var(--color-loss); }
+
+.legDetailPrice {
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.legDetailIv {
+  text-align: right;
+  color: var(--color-iv);
+}
+
+.legDetailSpread {
+  text-align: right;
+  color: var(--text-dim);
 }

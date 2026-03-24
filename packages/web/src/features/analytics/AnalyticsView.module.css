@@ -353,10 +353,25 @@
 }
 
 .curveLegendItem {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.curveLegendItem[data-active="true"] {
+  color: var(--text-secondary);
+}
+
+.curveLegendItem:not([data-active="true"]) {
+  opacity: 0.35;
 }
 
 .curveLegendDot {

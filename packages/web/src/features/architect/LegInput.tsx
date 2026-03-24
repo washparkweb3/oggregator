@@ -5,6 +5,7 @@ import { useChainQuery, useExpiries } from "@features/chain/queries";
 import { DropdownPicker } from "@components/ui";
 import { formatExpiry, dteDays } from "@lib/format";
 import { useStrategyStore } from "./strategy-store";
+import { repriceLeg } from "./reprice";
 import styles from "./Architect.module.css";
 
 export default function LegInput() {
@@ -31,12 +32,15 @@ export default function LegInput() {
   const strikes = chain?.strikes.map((s) => s.strike) ?? [];
   const atmStrike = chain?.stats.atmStrike ?? 0;
 
-  // Filter strikes by input
   const filtered = strikeInput
     ? strikes.filter((s) => s.toString().includes(strikeInput))
     : strikes;
 
-  // Close suggestions on outside click
+  useEffect(() => {
+    if (!globalExpiry) return;
+    setExpiry(globalExpiry);
+  }, [globalExpiry]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (strikeRef.current && !strikeRef.current.contains(e.target as Node)) {
@@ -54,52 +58,18 @@ export default function LegInput() {
 
   function handleAdd() {
     if (!chain || !expiry) return;
-    const targetStrike = Number(strikeInput) || atmStrike;
-    const strike = strikes.reduce((best, s) =>
-      Math.abs(s - targetStrike) < Math.abs(best - targetStrike) ? s : best,
-      strikes[0] ?? targetStrike,
-    );
-    const s = chain.strikes.find((x) => x.strike === strike);
-    const side = type === "call" ? s?.call : s?.put;
 
-    // Find best executable venue: lowest ask for buys, highest bid for sells
-    let bestPrice: number | null = null;
-    let bestVenueId = "";
-    let bestQ: { delta: number | null; gamma: number | null; theta: number | null; vega: number | null; markIv: number | null } | null = null;
-
-    if (side) {
-      for (const [vid, vq] of Object.entries(side.venues)) {
-        if (!vq || !activeVenues.includes(vid)) continue;
-        const p = direction === "buy" ? vq.ask : vq.bid;
-        if (p == null || p <= 0) continue;
-        if (bestPrice == null
-          || (direction === "buy" && p < bestPrice)
-          || (direction === "sell" && p > bestPrice)
-        ) {
-          bestPrice = p;
-          bestVenueId = vid;
-          bestQ = vq;
-        }
-      }
-    }
-
-    if (bestPrice == null || bestPrice <= 0) return;
-
-    addLeg({
+    const leg = repriceLeg(chain, activeVenues, {
       type,
       direction,
-      strike,
+      strike: Number(strikeInput) || atmStrike,
       expiry,
       quantity: Math.max(1, parseInt(qty, 10) || 1),
-      entryPrice: bestPrice,
-      venue: bestVenueId,
-      delta: bestQ?.delta ?? null,
-      gamma: bestQ?.gamma ?? null,
-      theta: bestQ?.theta ?? null,
-      vega: bestQ?.vega ?? null,
-      iv: bestQ?.markIv ?? null,
-    }, underlying);
+    });
 
+    if (!leg) return;
+
+    addLeg(leg, underlying);
     setStrikeInput("");
   }
 
