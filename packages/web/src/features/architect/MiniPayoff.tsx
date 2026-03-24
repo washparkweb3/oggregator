@@ -47,15 +47,7 @@ export default function MiniPayoff({ shape, width = 120, height = 60 }: MiniPayo
       <line x1={pad} y1={midY} x2={width - pad} y2={midY} stroke="#333" strokeWidth={0.5} strokeDasharray="3,3" />
       {/* P&L line */}
       <path d={linePath} fill="none" stroke="url(#pnlGrad)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      {/* Breakeven dots */}
-      {shape.map(([x, y], i) => {
-        if (i === 0 || i === shape.length - 1) return null;
-        const prevY = shape[i - 1]![1];
-        if ((prevY <= 0 && y >= 0) || (prevY >= 0 && y <= 0)) {
-          return <circle key={i} cx={toX(x)} cy={midY} r={2.5} fill="#F0B90B" />;
-        }
-        return null;
-      })}
+      {/* No dots on mini charts — keep them clean */}
       <defs>
         <linearGradient id="pnlGrad" x1="0" y1="0" x2={width} y2="0" gradientUnits="userSpaceOnUse">
           {shape.map(([x, y], i) => (
@@ -69,15 +61,15 @@ export default function MiniPayoff({ shape, width = 120, height = 60 }: MiniPayo
 
 // Pre-defined shapes for each strategy type
 export const STRATEGY_SHAPES: Record<string, Array<[number, number]>> = {
-  "Long Call": [[0, -0.15], [0.45, -0.15], [0.5, 0], [1, 0.85]],
-  "Long Put": [[0, 0.85], [0.5, 0], [0.55, -0.15], [1, -0.15]],
-  "Short Call": [[0, 0.15], [0.45, 0.15], [0.5, 0], [1, -0.85]],
-  "Short Put": [[0, -0.85], [0.5, 0], [0.55, 0.15], [1, 0.15]],
-  "Bull Call Spread": [[0, -0.3], [0.35, -0.3], [0.65, 0.6], [1, 0.6]],
-  "Bear Put Spread": [[0, 0.6], [0.35, 0.6], [0.65, -0.3], [1, -0.3]],
-  "Long Straddle": [[0, 0.7], [0.3, 0.2], [0.5, -0.2], [0.7, 0.2], [1, 0.7]],
-  "Short Straddle": [[0, -0.7], [0.3, -0.2], [0.5, 0.2], [0.7, -0.2], [1, -0.7]],
-  "Long Strangle": [[0, 0.6], [0.25, 0.1], [0.4, -0.15], [0.6, -0.15], [0.75, 0.1], [1, 0.6]],
-  "Iron Condor": [[0, -0.2], [0.2, 0.35], [0.35, 0.35], [0.5, 0.35], [0.65, 0.35], [0.8, -0.2], [1, -0.2]],
-  "Call Butterfly": [[0, -0.1], [0.3, -0.1], [0.5, 0.7], [0.7, -0.1], [1, -0.1]],
+  "Long Call":        [[0, -0.2], [0.5, -0.2], [0.55, 0], [1, 0.8]],
+  "Long Put":         [[0, 0.8], [0.45, 0], [0.5, -0.2], [1, -0.2]],
+  "Short Call":       [[0, 0.2], [0.5, 0.2], [0.55, 0], [1, -0.8]],
+  "Short Put":        [[0, -0.8], [0.45, 0], [0.5, 0.2], [1, 0.2]],
+  "Bull Call Spread":  [[0, -0.35], [0.35, -0.35], [0.65, 0.55], [1, 0.55]],
+  "Bear Put Spread":   [[0, 0.55], [0.35, 0.55], [0.65, -0.35], [1, -0.35]],
+  "Long Straddle":    [[0, 0.75], [0.35, 0.15], [0.5, -0.25], [0.65, 0.15], [1, 0.75]],
+  "Short Straddle":   [[0, -0.75], [0.35, -0.15], [0.5, 0.25], [0.65, -0.15], [1, -0.75]],
+  "Long Strangle":    [[0, 0.65], [0.2, 0.05], [0.35, -0.2], [0.65, -0.2], [0.8, 0.05], [1, 0.65]],
+  "Iron Condor":      [[0, -0.5], [0.15, -0.5], [0.25, 0.3], [0.4, 0.3], [0.6, 0.3], [0.75, -0.5], [0.85, -0.5], [1, -0.5]],
+  "Call Butterfly":    [[0, -0.1], [0.25, -0.1], [0.5, 0.7], [0.75, -0.1], [1, -0.1]],
 };

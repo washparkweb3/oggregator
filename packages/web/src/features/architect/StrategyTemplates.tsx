@@ -110,6 +110,7 @@ export default function StrategyTemplates({ chain, expiry, underlying }: Props) 
   const addLeg = useStrategyStore((s) => s.addLeg);
   const clearLegs = useStrategyStore((s) => s.clearLegs);
   const [sentiment, setSentiment] = useState<Sentiment>("all");
+  const [error, setError] = useState<string | null>(null);
 
   if (!chain) return null;
 
@@ -117,8 +118,14 @@ export default function StrategyTemplates({ chain, expiry, underlying }: Props) 
 
   function handleApply(template: StrategyTemplate) {
     if (!chain) return;
+    setError(null);
+    const newLegs = template.build(chain, expiry);
+    if (newLegs.length === 0) {
+      setError(`No quotes available for ${template.name} on this expiry. Try a later date.`);
+      return;
+    }
     clearLegs();
-    for (const leg of template.build(chain, expiry)) addLeg(leg, underlying);
+    for (const leg of newLegs) addLeg(leg, underlying);
   }
 
   return (
@@ -146,6 +153,13 @@ export default function StrategyTemplates({ chain, expiry, underlying }: Props) 
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className={styles.templateError}>
+          {error}
+          <button className={styles.templateErrorClose} onClick={() => setError(null)}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
