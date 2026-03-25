@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { isReady } from '../app.js';
+import { isTrafficReady } from '../readiness.js';
 import { healthRoute } from './health.js';
 import { venuesRoute } from './venues.js';
 import { underlyingsRoute } from './underlyings.js';
@@ -14,7 +14,7 @@ import { wsChainRoute } from './ws-chain.js';
 
 export function registerRoutes(app: FastifyInstance) {
   app.addHook('onRequest', async (_req, reply) => {
-    if (!isReady() && _req.url !== '/api/health' && !_req.url.startsWith('/ws/')) {
+    if (!isTrafficReady() && _req.url !== '/api/health' && _req.url !== '/api/ready' && !_req.url.startsWith('/ws/')) {
       return reply.status(503).send({ error: 'initializing', message: 'Server is loading market data' });
     }
   });

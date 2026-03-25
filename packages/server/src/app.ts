@@ -11,14 +11,27 @@ import { bootstrapAdapters } from './adapters.js';
 import { bootstrapServices } from './services.js';
 
 let ready = false;
+let shuttingDown = false;
 
 export function isReady() {
-  return ready;
+  return ready && !shuttingDown;
+}
+
+export function isShuttingDown() {
+  return shuttingDown;
+}
+
+export function startShutdown() {
+  shuttingDown = true;
+  ready = false;
 }
 
 const isDev = process.env['NODE_ENV'] !== 'production';
 
 export async function buildApp(): Promise<FastifyInstance> {
+  shuttingDown = false;
+  ready = false;
+
   const app = Fastify({
     logger: isDev
       ? {
@@ -49,6 +62,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   }
 
   bootstrapAdapters(app.log).then(() => {
+    if (shuttingDown) return;
     ready = true;
     bootstrapServices(app.log).catch((err: unknown) => {
       app.log.warn({ err: String(err) }, 'services bootstrap failed');
