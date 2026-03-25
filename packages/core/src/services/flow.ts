@@ -481,5 +481,67 @@ const VENUE_STREAMS: VenueStream[] = [
       }
       return trades;
     },
+    async seed(underlying) {
+      const ws = new WebSocket('wss://api.lyra.finance/ws');
+      return new Promise<TradeEvent[]>((resolve) => {
+        let settled = false;
+        const finish = (trades: TradeEvent[]) => {
+          if (settled) return;
+          settled = true;
+          ws.close();
+          resolve(trades);
+        };
+
+        ws.on('open', () => {
+          ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'public/get_trade_history',
+            params: {
+              currency: underlying,
+              instrument_type: 'option',
+              page: 999999,
+              page_size: 100,
+            },
+          }));
+        });
+
+        ws.on('message', (raw) => {
+          const msg = JSON.parse(raw.toString()) as Record<string, unknown>;
+          if (msg['id'] !== 1) return;
+
+          const result = msg['result'] as Record<string, unknown> | undefined;
+          const items = result?.['trades'];
+          if (!Array.isArray(items)) {
+            finish([]);
+            return;
+          }
+
+          const trades: TradeEvent[] = [];
+          for (const item of items) {
+            const parsed = DeriveTradeSchema.safeParse(item);
+            if (!parsed.success) continue;
+            trades.push({
+              venue: 'derive',
+              instrument: parsed.data.instrument_name,
+              underlying,
+              side: parsed.data.direction,
+              price: parsed.data.trade_price,
+              size: parsed.data.trade_amount,
+              iv: null,
+              markPrice: parsed.data.mark_price,
+              indexPrice: parsed.data.index_price,
+              isBlock: parsed.data.rfq_id != null && parsed.data.rfq_id !== '',
+              timestamp: parsed.data.timestamp,
+            });
+          }
+
+          finish(trades);
+        });
+
+        ws.on('error', () => finish([]));
+        setTimeout(() => finish([]), 10_000);
+      });
+    },
   },
 ];
